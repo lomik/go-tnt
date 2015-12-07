@@ -1,6 +1,10 @@
 package tnt
 
-import "testing"
+import (
+	"bytes"
+	"encoding/binary"
+	"testing"
+)
 
 func BenchmarkSelectPack(b *testing.B) {
 	// run the Fib function b.N times
@@ -13,5 +17,21 @@ func BenchmarkSelectPack(b *testing.B) {
 			Index:  15,
 		}
 		query.Pack()
+	}
+}
+
+func BenchmarkPackL(b *testing.B) {
+	value := uint32(4294866796)
+	for n := 0; n < b.N; n++ {
+		PackL(value)
+	}
+}
+
+func BenchmarkPackL1(b *testing.B) {
+	value := uint32(4294866796)
+	for n := 0; n < b.N; n++ {
+		body := new(bytes.Buffer)
+		binary.Write(body, binary.LittleEndian, value)
+		body.Bytes()
 	}
 }
