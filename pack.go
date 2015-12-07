@@ -75,7 +75,7 @@ func PackIntBase128(value uint32) []byte {
 	}
 }
 
-func PackString(value string) []byte {
+func packFieldStr(value []byte) []byte {
 	valueLenPacked := PackIntBase128(uint32(len(value)))
 
 	var buffer bytes.Buffer
@@ -85,10 +85,24 @@ func PackString(value string) []byte {
 	return buffer.Bytes()
 }
 
-func PackInt(value uint32) []byte {
+func packFieldInt(value uint32) []byte {
 	var buffer bytes.Buffer
 	buffer.Write(PackB(4))
 	buffer.Write(PackL(value))
+
+	return buffer.Bytes()
+}
+
+func packTuple(value Tuple) []byte {
+	var buffer bytes.Buffer
+
+	fields := len(value)
+
+	buffer.Write(PackL(uint32(fields)))
+
+	for i := 0; i < fields; i++ {
+		buffer.Write(packFieldStr(value[i]))
+	}
 
 	return buffer.Bytes()
 }

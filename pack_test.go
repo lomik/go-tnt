@@ -168,29 +168,46 @@ func TestPackIntBase128(t *testing.T) {
 	}
 }
 
-func TestPackInt(t *testing.T) {
+func TestPackFieldInt(t *testing.T) {
 	assert := assert.New(t)
 
 	for value := range values(32) {
 		assert.Equal(
 			pythonIproto("pack_int(%d)", value),
-			PackInt(uint32(value)),
+			packFieldInt(uint32(value)),
 		)
 	}
 }
 
-func TestPackString(t *testing.T) {
+func TestPackFieldStr(t *testing.T) {
 	assert := assert.New(t)
 
 	assert.Equal(
 		pythonIproto("pack_str(\"%s\")", "hello_world"),
-		PackString("hello_world"),
+		packFieldStr([]byte("hello_world")),
 	)
 
 	for value := range values(64) {
 		assert.Equal(
 			pythonIproto("pack_str(\"%d\")", value),
-			PackString(fmt.Sprintf("%d", value)),
+			packFieldStr(Field(fmt.Sprintf("%d", value))),
 		)
 	}
+}
+
+func TestPackTuple(t *testing.T) {
+	// python_iproto.pack_tuple([10,42,15,"hello world"])
+
+	assert := assert.New(t)
+
+	assert.Equal(
+		pythonIproto("pack_tuple([10,42,15,\"hello world\"])"),
+		packTuple(Tuple{
+			Field(PackL(10)),
+			Field(PackL(42)),
+			Field(PackL(15)),
+			Field("hello world"),
+		}),
+	)
+
 }
