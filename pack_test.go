@@ -55,11 +55,12 @@ func values(n int) chan uint {
 }
 
 func python(code string) []byte {
+	// pp.Println(code)
 	cmd := exec.Command("python", "-c", code)
 	out, err := cmd.Output()
 
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("python execute error:", err.Error())
 		return []byte{}
 	}
 
@@ -77,7 +78,7 @@ func pythonIproto(code string, args ...interface{}) []byte {
 
 	data, err := base64.StdEncoding.DecodeString(string(res))
 	if err != nil {
-		log.Fatal("error:", err)
+		log.Fatal("base64 decode error:", err)
 		return []byte{}
 	}
 
@@ -152,6 +153,33 @@ func TestPackQ(t *testing.T) {
 		assert.Equal(
 			pythonIproto("struct_Q.pack(%d)", value),
 			PackQ(uint64(value)),
+		)
+	}
+}
+
+func TestPackIntBase128(t *testing.T) {
+	assert := assert.New(t)
+
+	for value := range values(32) {
+		assert.Equal(
+			pythonIproto("pack_int_base128(%d)", value),
+			PackIntBase128(uint32(value)),
+		)
+	}
+}
+
+func TestPackString(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal(
+		pythonIproto("pack_str(\"%s\")", "hello_world"),
+		PackString("hello_world"),
+	)
+
+	for value := range values(64) {
+		assert.Equal(
+			pythonIproto("pack_str(\"%d\")", value),
+			PackString(fmt.Sprintf("%d", value)),
 		)
 	}
 }
