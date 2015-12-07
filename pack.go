@@ -2,8 +2,8 @@ package tnt
 
 import "bytes"
 
-var packedL0 []byte = PackL(0)
-var packedL1 []byte = PackL(1)
+var packedL0 = PackL(0)
+var packedL1 = PackL(1)
 
 func packLittle(value uint, bytes int) []byte {
 	b := value
@@ -110,7 +110,7 @@ func packTuple(value Tuple) []byte {
 	return buffer.Bytes()
 }
 
-func (q *Select) Pack() []byte {
+func (q *Select) Pack(requestID uint32) []byte {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
@@ -145,13 +145,13 @@ func (q *Select) Pack() []byte {
 
 	buffer.Write(PackL(requestTypeSelect))
 	buffer.Write(PackL(uint32(bodyBuffer.Len())))
-	buffer.Write(packedL0)
+	buffer.Write(PackL(requestID))
 	buffer.Write(bodyBuffer.Bytes())
 
 	return buffer.Bytes()
 }
 
-func (q *Insert) Pack() []byte {
+func (q *Insert) Pack(requestID uint32) []byte {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
@@ -165,7 +165,7 @@ func (q *Insert) Pack() []byte {
 
 	buffer.Write(PackL(requestTypeInsert))
 	buffer.Write(PackL(uint32(bodyBuffer.Len())))
-	buffer.Write(packedL0)
+	buffer.Write(PackL(requestID))
 	buffer.Write(bodyBuffer.Bytes())
 
 	return buffer.Bytes()

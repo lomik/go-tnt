@@ -16,7 +16,7 @@ func BenchmarkSelectPack(b *testing.B) {
 			Limit:  14,
 			Index:  15,
 		}
-		query.Pack()
+		query.Pack(0)
 	}
 }
 

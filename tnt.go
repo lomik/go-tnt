@@ -1,5 +1,7 @@
 package tnt
 
+import "net"
+
 type Field []byte
 type Tuple []Field
 
@@ -10,7 +12,12 @@ const requestTypeSelect = 17
 const requestTypeUpdate = 19
 
 type Query interface {
-	Pack() []byte
+	Pack(requestID uint32) []byte
+}
+
+type request struct {
+	raw       []byte
+	replyChan chan *Response
 }
 
 type Select struct {
@@ -38,4 +45,16 @@ type Insert struct {
 	Tuple       Tuple
 	Space       uint32
 	ReturnTuple bool
+}
+
+type Response struct {
+	Data  []Tuple
+	Error error
+}
+
+type Connection struct {
+	addr        net.Addr
+	requestID   uint32
+	requests    map[int]*request
+	requestChan chan *request
 }
