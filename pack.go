@@ -84,3 +84,11 @@ func PackString(value string) []byte {
 
 	return buffer.Bytes()
 }
+
+func PackInt(value uint32) []byte {
+	var buffer bytes.Buffer
+	buffer.Write(PackB(4))
+	buffer.Write(PackL(value))
+
+	return buffer.Bytes()
+}

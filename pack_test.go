@@ -168,6 +168,17 @@ func TestPackIntBase128(t *testing.T) {
 	}
 }
 
+func TestPackInt(t *testing.T) {
+	assert := assert.New(t)
+
+	for value := range values(32) {
+		assert.Equal(
+			pythonIproto("pack_int(%d)", value),
+			PackInt(uint32(value)),
+		)
+	}
+}
+
 func TestPackString(t *testing.T) {
 	assert := assert.New(t)
 
