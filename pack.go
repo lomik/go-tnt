@@ -106,3 +106,44 @@ func packTuple(value Tuple) []byte {
 
 	return buffer.Bytes()
 }
+
+func (q *Select) Pack() []byte {
+	var bodyBuffer bytes.Buffer
+	var buffer bytes.Buffer
+
+	limit := q.Limit
+	if limit == 0 {
+		limit = 0xffffffff
+	}
+
+	bodyBuffer.Write(PackL(q.Space))
+	bodyBuffer.Write(PackL(q.Index))
+	bodyBuffer.Write(PackL(q.Offset))
+	bodyBuffer.Write(PackL(limit))
+
+	if q.Value != nil {
+		bodyBuffer.Write(PackL(1))
+		bodyBuffer.Write(packTuple(Tuple{q.Value}))
+	} else if q.Values != nil {
+		cnt := len(q.Values)
+		bodyBuffer.Write(PackL(uint32(cnt)))
+		for i := 0; i < cnt; i++ {
+			bodyBuffer.Write(packTuple(Tuple{q.Values[i]}))
+		}
+	} else if q.Tuples != nil {
+		cnt := len(q.Tuples)
+		bodyBuffer.Write(PackL(uint32(cnt)))
+		for i := 0; i < cnt; i++ {
+			bodyBuffer.Write(packTuple(q.Tuples[i]))
+		}
+	} else {
+		bodyBuffer.Write(PackL(0))
+	}
+
+	buffer.Write(PackL(requestTypeSelect))
+	buffer.Write(PackL(uint32(bodyBuffer.Len())))
+	buffer.Write(PackL(0))
+	buffer.Write(bodyBuffer.Bytes())
+
+	return buffer.Bytes()
+}

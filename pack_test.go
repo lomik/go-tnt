@@ -196,8 +196,6 @@ func TestPackFieldStr(t *testing.T) {
 }
 
 func TestPackTuple(t *testing.T) {
-	// python_iproto.pack_tuple([10,42,15,"hello world"])
-
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -209,5 +207,37 @@ func TestPackTuple(t *testing.T) {
 			Field("hello world"),
 		}),
 	)
+}
 
+func TestPackSelect(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal(
+		pythonIproto("pack_select(0, 42)"),
+		(&Select{
+			Value: PackL(42),
+		}).Pack(),
+	)
+
+	assert.Equal(
+		pythonIproto("pack_select(10, [11, 12], offset=13, limit=14, index=15)"),
+		(&Select{
+			Values: Tuple{PackL(11), PackL(12)},
+			Space:  10,
+			Offset: 13,
+			Limit:  14,
+			Index:  15,
+		}).Pack(),
+	)
+
+	assert.Equal(
+		pythonIproto("pack_select(1, [[11, 12], [13, 14]])"),
+		(&Select{
+			Tuples: []Tuple{
+				Tuple{PackL(11), PackL(12)},
+				Tuple{PackL(13), PackL(14)},
+			},
+			Space: 1,
+		}).Pack(),
+	)
 }
