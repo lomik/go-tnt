@@ -33,3 +33,9 @@ type Select struct {
 	Limit  uint32 // 0x0 == 0xffffffff
 	Offset uint32
 }
+
+type Insert struct {
+	Tuple       Tuple
+	Space       uint32
+	ReturnTuple bool
+}

@@ -241,3 +241,29 @@ func TestPackSelect(t *testing.T) {
 		}).Pack(),
 	)
 }
+
+func TestPackInsert(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal(
+		pythonIproto("pack_insert(0, [42, 15])"),
+		(&Insert{
+			Tuple: Tuple{
+				PackL(42),
+				PackL(15),
+			},
+		}).Pack(),
+	)
+
+	assert.Equal(
+		pythonIproto("pack_insert(10, [11, 12], return_tuple=1)"),
+		(&Insert{
+			Space: 10,
+			Tuple: Tuple{
+				PackL(11),
+				PackL(12),
+			},
+			ReturnTuple: true,
+		}).Pack(),
+	)
+}
