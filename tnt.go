@@ -16,6 +16,7 @@ type Query interface {
 }
 
 type request struct {
+	query     Query
 	raw       []byte
 	replyChan chan *Response
 }
@@ -48,13 +49,16 @@ type Insert struct {
 }
 
 type Response struct {
-	Data  []Tuple
-	Error error
+	Data      []Tuple
+	Error     error
+	requestID uint32
 }
 
 type Connection struct {
-	addr        net.Addr
-	requestID   uint32
-	requests    map[int]*request
-	requestChan chan *request
+	addr      *net.TCPAddr
+	requestID uint32
+	requests  map[uint32]*request
+	queryChan chan Query
+	exit      chan bool
+	closed    chan bool
 }
