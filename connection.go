@@ -4,13 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net"
 	"sync"
 	"time"
-
-	"github.com/k0kubun/pp"
 )
 
 func Connect(addr string) (connection *Connection, err error) {
@@ -24,6 +21,7 @@ func Connect(addr string) (connection *Connection, err error) {
 		requests:    make(map[uint32]*request),
 		requestChan: make(chan *request, 1024),
 		exit:        make(chan bool),
+		closed:      make(chan bool),
 	}
 
 	go connection.worker()
@@ -68,10 +66,7 @@ func (conn *Connection) worker() {
 
 WORKER_LOOP:
 	for {
-		log.Printf("connect")
 		tcpConn, err := net.DialTCP("tcp", nil, conn.addr)
-		log.Printf("connection error: %s", err)
-		pp.Println("connection error", err)
 		if err != nil {
 			time.Sleep(time.Second)
 			// @TODO: log err
@@ -82,7 +77,15 @@ WORKER_LOOP:
 
 		readChan := make(chan *Response, 1024)
 		writeChan := make(chan *request, 1024)
-		finished := make(chan bool)
+
+		stopChan := make(chan bool)
+		var stopOnce sync.Once
+
+		stop := func() {
+			stopOnce.Do(func() {
+				close(stopChan)
+			})
+		}
 
 		wg.Add(4)
 
@@ -90,26 +93,28 @@ WORKER_LOOP:
 			select {
 			case <-conn.exit:
 				tcpConn.Close()
-			case <-finished:
+			case <-stopChan:
 				// break
 			}
-
+			stop()
 			wg.Done()
 		}()
 
 		go func() {
-			conn.router(writeChan, readChan)
-			close(finished)
+			conn.router(readChan, writeChan, stopChan)
+			stop()
 			wg.Done()
 		}()
 
 		go func() {
-			writer(tcpConn, writeChan)
+			writer(tcpConn, writeChan, stopChan)
+			stop()
 			wg.Done()
 		}()
 
 		go func() {
 			reader(tcpConn, readChan)
+			stop()
 			wg.Done()
 		}()
 
@@ -121,10 +126,11 @@ WORKER_LOOP:
 		default:
 		}
 	}
+
 	close(conn.closed)
 }
 
-func (conn *Connection) router(writeChan chan *request, readChan chan *Response) {
+func (conn *Connection) router(readChan chan *Response, writeChan chan *request, stopChan chan bool) {
 	// close(readChan) for stop router
 	requestChan := conn.requestChan
 
@@ -142,7 +148,14 @@ ROUTER_LOOP:
 		select {
 		case r := <-requestChan:
 			conn.newRequest(r)
-			writeChan <- r
+			select {
+			case writeChan <- r:
+				// pass
+			case <-stopChan:
+				break ROUTER_LOOP
+			}
+		case <-stopChan:
+			break ROUTER_LOOP
 		case res, ok := <-readChan:
 			if !ok {
 				break ROUTER_LOOP
@@ -152,13 +165,20 @@ ROUTER_LOOP:
 	}
 }
 
-func writer(tcpConn *net.TCPConn, writeChan chan *request) {
+func writer(tcpConn *net.TCPConn, writeChan chan *request, stopChan chan bool) {
 WRITER_LOOP:
 	for {
-		request := <-writeChan
-		_, err := tcpConn.Write(request.raw)
-		// @TODO: handle error
-		if err != nil {
+		select {
+		case request, ok := <-writeChan:
+			if !ok {
+				break WRITER_LOOP
+			}
+			_, err := tcpConn.Write(request.raw)
+			// @TODO: handle error
+			if err != nil {
+				break WRITER_LOOP
+			}
+		case <-stopChan:
 			break WRITER_LOOP
 		}
 	}
@@ -173,13 +193,13 @@ func reader(tcpConn *net.TCPConn, readChan chan *Response) {
 
 	var bodyLen uint32
 	var requestID uint32
+	var response *Response
 
 	var err error
 
 READER_LOOP:
 	for {
 		_, err = io.ReadAtLeast(reader, header, headerLen)
-
 		// @TODO: log error
 		if err != nil {
 			break READER_LOOP
@@ -191,13 +211,18 @@ READER_LOOP:
 		body := make([]byte, bodyLen)
 
 		_, err = io.ReadAtLeast(reader, body, int(bodyLen))
-
 		// @TODO: log error
 		if err != nil {
 			break READER_LOOP
 		}
 
-		pp.Println(header, int(bodyLen), body, requestID)
+		response, err = UnpackBody(body)
+		// @TODO: log error
+		if err != nil {
+			break READER_LOOP
+		}
+		response.requestID = requestID
 
+		readChan <- response
 	}
 }

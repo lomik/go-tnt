@@ -1,6 +1,9 @@
 package tnt
 
-import "net"
+import (
+	"net"
+	"sync"
+)
 
 type Field []byte
 type Tuple []Field
@@ -59,6 +62,7 @@ type Connection struct {
 	requestID   uint32
 	requests    map[uint32]*request
 	requestChan chan *request
+	closeExit   sync.Once
 	exit        chan bool
 	closed      chan bool
 }
@@ -71,13 +75,13 @@ func (conn *Connection) Execute(q Query) ([]Tuple, error) {
 
 	conn.requestChan <- request
 
-	return nil, nil
-
 	response := <-request.replyChan
 	return response.Data, response.Error
 }
 
 func (conn *Connection) Close() {
-	close(conn.exit)
+	conn.closeExit.Do(func() {
+		close(conn.exit)
+	})
 	<-conn.closed
 }

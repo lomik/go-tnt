@@ -34,3 +34,22 @@ func BenchmarkPackInt1(b *testing.B) {
 		body.Bytes()
 	}
 }
+
+func BenchmarkSelect(b *testing.B) {
+	b.SkipNow()
+
+	conn, err := Connect("192.168.99.100:2001")
+	defer conn.Close()
+
+	if err != nil {
+		b.FailNow()
+	}
+
+	for n := 0; n < b.N; n++ {
+		conn.Execute(&Select{
+			Value: PackInt(0),
+			Space: 10,
+		})
+	}
+
+}
