@@ -55,10 +55,26 @@ type Response struct {
 }
 
 type Connection struct {
-	addr      *net.TCPAddr
-	requestID uint32
-	requests  map[uint32]*request
-	queryChan chan Query
-	exit      chan bool
-	closed    chan bool
+	addr        *net.TCPAddr
+	requestID   uint32
+	requests    map[uint32]*request
+	requestChan chan *request
+	exit        chan bool
+	closed      chan bool
+}
+
+func (conn *Connection) Execute(q Query) ([]Tuple, error) {
+	request := &request{
+		query:     q,
+		replyChan: make(chan *Response, 1),
+	}
+
+	conn.requestChan <- request
+	response := <-request.replyChan
+	return response.Data, response.Error
+}
+
+func (conn *Connection) Close() {
+	close(conn.exit)
+	<-conn.closed
 }

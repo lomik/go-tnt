@@ -135,24 +135,24 @@ func TestPackB(t *testing.T) {
 	}
 }
 
-func TestPackL(t *testing.T) {
+func TestPackInt(t *testing.T) {
 	assert := assert.New(t)
 
 	for value := range values(32) {
 		assert.Equal(
 			pythonIproto("struct_L.pack(%d)", value),
-			PackL(uint32(value)),
+			PackInt(uint32(value)),
 		)
 	}
 }
 
-func TestPackQ(t *testing.T) {
+func TestPackLong(t *testing.T) {
 	assert := assert.New(t)
 
 	for value := range values(64) {
 		assert.Equal(
 			pythonIproto("struct_Q.pack(%d)", value),
-			PackQ(uint64(value)),
+			PackLong(uint64(value)),
 		)
 	}
 }
@@ -201,9 +201,9 @@ func TestPackTuple(t *testing.T) {
 	assert.Equal(
 		pythonIproto("pack_tuple([10,42,15,\"hello world\"])"),
 		packTuple(Tuple{
-			Field(PackL(10)),
-			Field(PackL(42)),
-			Field(PackL(15)),
+			Field(PackInt(10)),
+			Field(PackInt(42)),
+			Field(PackInt(15)),
 			Field("hello world"),
 		}),
 	)
@@ -215,14 +215,14 @@ func TestPackSelect(t *testing.T) {
 	assert.Equal(
 		pythonIproto("pack_select(0, 42)"),
 		(&Select{
-			Value: PackL(42),
+			Value: PackInt(42),
 		}).Pack(0),
 	)
 
 	assert.Equal(
 		pythonIproto("pack_select(10, [11, 12], offset=13, limit=14, index=15)"),
 		(&Select{
-			Values: Tuple{PackL(11), PackL(12)},
+			Values: Tuple{PackInt(11), PackInt(12)},
 			Space:  10,
 			Offset: 13,
 			Limit:  14,
@@ -234,8 +234,8 @@ func TestPackSelect(t *testing.T) {
 		pythonIproto("pack_select(1, [[11, 12], [13, 14]])"),
 		(&Select{
 			Tuples: []Tuple{
-				Tuple{PackL(11), PackL(12)},
-				Tuple{PackL(13), PackL(14)},
+				Tuple{PackInt(11), PackInt(12)},
+				Tuple{PackInt(13), PackInt(14)},
 			},
 			Space: 1,
 		}).Pack(0),
@@ -249,8 +249,8 @@ func TestPackInsert(t *testing.T) {
 		pythonIproto("pack_insert(0, [42, 15])"),
 		(&Insert{
 			Tuple: Tuple{
-				PackL(42),
-				PackL(15),
+				PackInt(42),
+				PackInt(15),
 			},
 		}).Pack(0),
 	)
@@ -260,8 +260,8 @@ func TestPackInsert(t *testing.T) {
 		(&Insert{
 			Space: 10,
 			Tuple: Tuple{
-				PackL(11),
-				PackL(12),
+				PackInt(11),
+				PackInt(12),
 			},
 			ReturnTuple: true,
 		}).Pack(0),

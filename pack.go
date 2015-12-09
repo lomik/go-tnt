@@ -2,8 +2,8 @@ package tnt
 
 import "bytes"
 
-var packedL0 = PackL(0)
-var packedL1 = PackL(1)
+var packedInt0 = PackInt(0)
+var packedInt1 = PackInt(1)
 
 func packLittle(value uint, bytes int) []byte {
 	b := value
@@ -29,11 +29,13 @@ func PackB(value uint8) []byte {
 	return []byte{value}
 }
 
-func PackL(value uint32) []byte {
+// PackInt is alias for PackL
+func PackInt(value uint32) []byte {
 	return packLittle(uint(value), 4)
 }
 
-func PackQ(value uint64) []byte {
+// PackLong is alias for PackQ
+func PackLong(value uint64) []byte {
 	return packLittle(uint(value), 8)
 }
 
@@ -91,7 +93,7 @@ func packFieldStr(value []byte) []byte {
 func packFieldInt(value uint32) []byte {
 	var buffer bytes.Buffer
 	buffer.Write(PackB(4))
-	buffer.Write(PackL(value))
+	buffer.Write(PackInt(value))
 
 	return buffer.Bytes()
 }
@@ -101,7 +103,7 @@ func packTuple(value Tuple) []byte {
 
 	fields := len(value)
 
-	buffer.Write(PackL(uint32(fields)))
+	buffer.Write(PackInt(uint32(fields)))
 
 	for i := 0; i < fields; i++ {
 		buffer.Write(packFieldStr(value[i]))
@@ -119,33 +121,33 @@ func (q *Select) Pack(requestID uint32) []byte {
 		limit = 0xffffffff
 	}
 
-	bodyBuffer.Write(PackL(q.Space))
-	bodyBuffer.Write(PackL(q.Index))
-	bodyBuffer.Write(PackL(q.Offset))
-	bodyBuffer.Write(PackL(limit))
+	bodyBuffer.Write(PackInt(q.Space))
+	bodyBuffer.Write(PackInt(q.Index))
+	bodyBuffer.Write(PackInt(q.Offset))
+	bodyBuffer.Write(PackInt(limit))
 
 	if q.Value != nil {
-		bodyBuffer.Write(PackL(1))
+		bodyBuffer.Write(PackInt(1))
 		bodyBuffer.Write(packTuple(Tuple{q.Value}))
 	} else if q.Values != nil {
 		cnt := len(q.Values)
-		bodyBuffer.Write(PackL(uint32(cnt)))
+		bodyBuffer.Write(PackInt(uint32(cnt)))
 		for i := 0; i < cnt; i++ {
 			bodyBuffer.Write(packTuple(Tuple{q.Values[i]}))
 		}
 	} else if q.Tuples != nil {
 		cnt := len(q.Tuples)
-		bodyBuffer.Write(PackL(uint32(cnt)))
+		bodyBuffer.Write(PackInt(uint32(cnt)))
 		for i := 0; i < cnt; i++ {
 			bodyBuffer.Write(packTuple(q.Tuples[i]))
 		}
 	} else {
-		bodyBuffer.Write(packedL0)
+		bodyBuffer.Write(packedInt0)
 	}
 
-	buffer.Write(PackL(requestTypeSelect))
-	buffer.Write(PackL(uint32(bodyBuffer.Len())))
-	buffer.Write(PackL(requestID))
+	buffer.Write(PackInt(requestTypeSelect))
+	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
+	buffer.Write(PackInt(requestID))
 	buffer.Write(bodyBuffer.Bytes())
 
 	return buffer.Bytes()
@@ -155,17 +157,17 @@ func (q *Insert) Pack(requestID uint32) []byte {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
-	bodyBuffer.Write(PackL(q.Space))
+	bodyBuffer.Write(PackInt(q.Space))
 	if q.ReturnTuple {
-		bodyBuffer.Write(packedL1)
+		bodyBuffer.Write(packedInt1)
 	} else {
-		bodyBuffer.Write(packedL0)
+		bodyBuffer.Write(packedInt0)
 	}
 	bodyBuffer.Write(packTuple(q.Tuple))
 
-	buffer.Write(PackL(requestTypeInsert))
-	buffer.Write(PackL(uint32(bodyBuffer.Len())))
-	buffer.Write(PackL(requestID))
+	buffer.Write(PackInt(requestTypeInsert))
+	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
+	buffer.Write(PackInt(requestID))
 	buffer.Write(bodyBuffer.Bytes())
 
 	return buffer.Bytes()

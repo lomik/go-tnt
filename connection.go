@@ -1,11 +1,15 @@
 package tnt
 
 import (
+	"bufio"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/k0kubun/pp"
 )
 
 func Connect(addr string) (connection *Connection, err error) {
@@ -15,11 +19,13 @@ func Connect(addr string) (connection *Connection, err error) {
 	}
 
 	connection = &Connection{
-		addr:      raddr,
-		requests:  make(map[uint32]*request),
-		queryChan: make(chan Query, 1024),
-		exit:      make(chan bool),
+		addr:        raddr,
+		requests:    make(map[uint32]*request),
+		requestChan: make(chan *request, 1024),
+		exit:        make(chan bool),
 	}
+
+	go connection.worker()
 
 	return
 }
@@ -32,11 +38,7 @@ func (conn *Connection) nextID() uint32 {
 	return conn.requestID
 }
 
-func (conn *Connection) newQuery(q Query) *request {
-	r := &request{
-		query:     q,
-		replyChan: make(chan *Response, 1),
-	}
+func (conn *Connection) newRequest(r *request) {
 	requestID := conn.nextID()
 	old, exists := conn.requests[requestID]
 	if exists {
@@ -49,7 +51,6 @@ func (conn *Connection) newQuery(q Query) *request {
 
 	r.raw = r.query.Pack(requestID)
 	conn.requests[requestID] = r
-	return r
 }
 
 func (conn *Connection) handleReply(res *Response) {
@@ -122,7 +123,7 @@ WORKER_LOOP:
 
 func (conn *Connection) router(writeChan chan *request, readChan chan *Response) {
 	// close(readChan) for stop router
-	newQueryChan := conn.queryChan
+	requestChan := conn.requestChan
 
 	readChanThreshold := cap(readChan) / 10
 
@@ -130,14 +131,14 @@ ROUTER_LOOP:
 	for {
 		// force read reply
 		if len(readChan) > readChanThreshold {
-			newQueryChan = nil
+			requestChan = nil
 		} else {
-			newQueryChan = conn.queryChan
+			requestChan = conn.requestChan
 		}
 
 		select {
-		case q := <-newQueryChan:
-			r := conn.newQuery(q)
+		case r := <-requestChan:
+			conn.newRequest(r)
 			writeChan <- r
 		case res, ok := <-readChan:
 			if !ok {
@@ -149,9 +150,21 @@ ROUTER_LOOP:
 }
 
 func writer(tcpConn *net.TCPConn, writeChan chan *request) {
-
+	// WRITER_LOOP:
+	for {
+		request := <-writeChan
+		_, err := tcpConn.Write(request.raw)
+		pp.Println(err, request.raw)
+	}
 }
 
 func reader(tcpConn *net.TCPConn, readChan chan *Response) {
+	reader := bufio.NewReader(tcpConn)
+	var msgLen uint32
+	var err error
 
+	for {
+		err = binary.Read(reader, binary.BigEndian, &msgLen)
+		pp.Println(msgLen, err)
+	}
 }

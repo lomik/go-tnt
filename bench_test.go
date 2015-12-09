@@ -9,7 +9,7 @@ import (
 func BenchmarkSelectPack(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		query := &Select{
-			Values: Tuple{PackL(11), PackL(12)},
+			Values: Tuple{PackInt(11), PackInt(12)},
 			Space:  10,
 			Offset: 13,
 			Limit:  14,
@@ -19,14 +19,14 @@ func BenchmarkSelectPack(b *testing.B) {
 	}
 }
 
-func BenchmarkPackL(b *testing.B) {
+func BenchmarkPackInt(b *testing.B) {
 	value := uint32(4294866796)
 	for n := 0; n < b.N; n++ {
-		PackL(value)
+		PackInt(value)
 	}
 }
 
-func BenchmarkPackL1(b *testing.B) {
+func BenchmarkPackInt1(b *testing.B) {
 	value := uint32(4294866796)
 	for n := 0; n < b.N; n++ {
 		body := new(bytes.Buffer)
