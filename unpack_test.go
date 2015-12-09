@@ -80,3 +80,22 @@ func TestUnpackBodyEmpty(t *testing.T) {
 	assert.Empty(response.Data)
 	assert.NoError(response.Error)
 }
+
+func TestUnpackBody1(t *testing.T) {
+	assert := assert.New(t)
+
+	body := []uint8{0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0xa, 0x0, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x4, 0xa3, 0x51, 0x53, 0x71, 0x4, 0x2, 0x0, 0x0, 0x0}
+	response, err := UnpackBody(body)
+	assert.NoError(err)
+	assert.NotNil(response.Data)
+	assert.Equal(
+		[]Tuple{
+			Tuple{
+				PackInt(1901285795),
+				PackInt(2),
+			},
+		},
+		response.Data,
+	)
+	assert.NoError(response.Error)
+}

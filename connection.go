@@ -19,7 +19,7 @@ func Connect(addr string) (connection *Connection, err error) {
 	connection = &Connection{
 		addr:        raddr,
 		requests:    make(map[uint32]*request),
-		requestChan: make(chan *request, 1024),
+		requestChan: make(chan *request, 16),
 		exit:        make(chan bool),
 		closed:      make(chan bool),
 	}
@@ -75,8 +75,8 @@ WORKER_LOOP:
 
 		var wg sync.WaitGroup
 
-		readChan := make(chan *Response, 1024)
-		writeChan := make(chan *request, 1024)
+		readChan := make(chan *Response, 16)
+		writeChan := make(chan *request, 16)
 
 		stopChan := make(chan bool)
 		var stopOnce sync.Once

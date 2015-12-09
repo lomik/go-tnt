@@ -16,8 +16,8 @@ func unpackIntBase128(p []byte) (uint32, int, error) {
 
 	var i int
 	for ; ; i++ {
-		if i >= length {
-			return 0, 0, errors.New("Truncated varint")
+		if i >= length || i > 11 {
+			return 0, 0, errors.New("Error varint unpack")
 		}
 		if (p[i] & 0x80) != 0 {
 			b = (b << 7) | uint32(p[i]^0x80)
@@ -43,7 +43,7 @@ func unpackTuple(p []byte) (Tuple, error) {
 			return nil, errors.New("Unpack tuple error")
 		}
 
-		dataLength, varintLength, err := unpackIntBase128(p[offset : offset+11])
+		dataLength, varintLength, err := unpackIntBase128(p[offset:])
 		if err != nil {
 			return nil, err
 		}
