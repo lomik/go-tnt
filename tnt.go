@@ -70,6 +70,9 @@ func (conn *Connection) Execute(q Query) ([]Tuple, error) {
 	}
 
 	conn.requestChan <- request
+
+	return nil, nil
+
 	response := <-request.replyChan
 	return response.Data, response.Error
 }

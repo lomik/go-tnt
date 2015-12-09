@@ -2,8 +2,9 @@ package tnt
 
 import (
 	"bufio"
-	"encoding/binary"
 	"fmt"
+	"io"
+	"log"
 	"math"
 	"net"
 	"sync"
@@ -67,8 +68,10 @@ func (conn *Connection) worker() {
 
 WORKER_LOOP:
 	for {
-
+		log.Printf("connect")
 		tcpConn, err := net.DialTCP("tcp", nil, conn.addr)
+		log.Printf("connection error: %s", err)
+		pp.Println("connection error", err)
 		if err != nil {
 			time.Sleep(time.Second)
 			// @TODO: log err
@@ -150,21 +153,51 @@ ROUTER_LOOP:
 }
 
 func writer(tcpConn *net.TCPConn, writeChan chan *request) {
-	// WRITER_LOOP:
+WRITER_LOOP:
 	for {
 		request := <-writeChan
 		_, err := tcpConn.Write(request.raw)
-		pp.Println(err, request.raw)
+		// @TODO: handle error
+		if err != nil {
+			break WRITER_LOOP
+		}
 	}
 }
 
 func reader(tcpConn *net.TCPConn, readChan chan *Response) {
 	reader := bufio.NewReader(tcpConn)
-	var msgLen uint32
+	// var msgLen uint32
+	// var err error
+	header := make([]byte, 12)
+	headerLen := len(header)
+
+	var bodyLen uint32
+	var requestID uint32
+
 	var err error
 
+READER_LOOP:
 	for {
-		err = binary.Read(reader, binary.BigEndian, &msgLen)
-		pp.Println(msgLen, err)
+		_, err = io.ReadAtLeast(reader, header, headerLen)
+
+		// @TODO: log error
+		if err != nil {
+			break READER_LOOP
+		}
+
+		bodyLen = UnpackInt(header[4:8])
+		requestID = UnpackInt(header[8:12])
+
+		body := make([]byte, bodyLen)
+
+		_, err = io.ReadAtLeast(reader, body, int(bodyLen))
+
+		// @TODO: log error
+		if err != nil {
+			break READER_LOOP
+		}
+
+		pp.Println(header, int(bodyLen), body, requestID)
+
 	}
 }
