@@ -75,8 +75,8 @@ WORKER_LOOP:
 
 		var wg sync.WaitGroup
 
-		readChan := make(chan *Response, 16)
-		writeChan := make(chan *request, 16)
+		readChan := make(chan *Response, 256)
+		writeChan := make(chan *request, 256)
 
 		stopChan := make(chan bool)
 		var stopOnce sync.Once
