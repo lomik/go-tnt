@@ -10,7 +10,7 @@ import (
 func TestSelect(t *testing.T) {
 	assert := assert.New(t)
 
-	conn, err := Connect("192.168.99.100:2001")
+	conn, err := Connect("192.168.99.100:2001", nil)
 	assert.NoError(err)
 	defer conn.Close()
 
@@ -26,7 +26,7 @@ func TestSelect(t *testing.T) {
 func TestInsert(t *testing.T) {
 	assert := assert.New(t)
 
-	conn, err := Connect("192.168.99.100:2001")
+	conn, err := Connect("192.168.99.100:2001", nil)
 	assert.NoError(err)
 	defer conn.Close()
 

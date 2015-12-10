@@ -39,7 +39,7 @@ func BenchmarkPackIntAlt1(b *testing.B) {
 func BenchmarkSelect(b *testing.B) {
 	b.SkipNow()
 
-	conn, err := Connect("192.168.99.100:2001")
+	conn, err := Connect("192.168.99.100:2001", nil)
 	defer conn.Close()
 
 	if err != nil {
