@@ -60,6 +60,9 @@ func (conn *Connection) handleReply(res *Response) {
 func (conn *Connection) worker() {
 	// @TODO: Send all waiting requests?
 
+	var tcpConn net.Conn
+	var err error
+
 WORKER_LOOP:
 	for {
 		select {
@@ -69,7 +72,7 @@ WORKER_LOOP:
 		}
 
 		// pp.Println("connect")
-		tcpConn, err := net.DialTimeout("tcp", conn.addr, time.Duration(time.Second))
+		tcpConn, err = net.DialTimeout("tcp", conn.addr, time.Duration(time.Second))
 		if err != nil {
 			time.Sleep(time.Second)
 			// @TODO: log err
