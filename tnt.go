@@ -1,6 +1,10 @@
 package tnt
 
-import "sync"
+import (
+	"net"
+	"sync"
+	"time"
+)
 
 type Field []byte
 type Tuple []Field
@@ -55,34 +59,73 @@ type Response struct {
 }
 
 type Options struct {
+	ConnectTimeout time.Duration
+	QueryTimeout   time.Duration
+}
+
+type QueryOptions struct {
+	Timeout time.Duration
 }
 
 type Connection struct {
-	addr        string
-	requestID   uint32
-	requests    map[uint32]*request
-	requestChan chan *request
-	closeExit   sync.Once
-	exit        chan bool
-	closed      chan bool
+	addr         string
+	requestID    uint32
+	requests     map[uint32]*request
+	requestChan  chan *request
+	closeOnce    sync.Once
+	exit         chan bool
+	closed       chan bool
+	tcpConn      net.Conn
+	queryTimeout time.Duration
 }
 
-func (conn *Connection) Execute(q Query) ([]Tuple, error) {
+func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tuple, err error) {
 	request := &request{
 		query:     q,
 		replyChan: make(chan *Response, 1),
 	}
 
-	conn.requestChan <- request
+	// make options
+	if opts == nil {
+		opts = &QueryOptions{}
+	}
 
-	response := <-request.replyChan
-	return response.Data, response.Error
+	if opts.Timeout.Nanoseconds() == 0 {
+		opts.Timeout = conn.queryTimeout
+	}
+
+	// set execute deadline
+	deadline := time.After(opts.Timeout)
+
+	select {
+	case conn.requestChan <- request:
+		// pass
+	case <-deadline:
+		return nil, NewConnectionError("Request send timeout")
+	case <-conn.exit:
+		return nil, ConnectionClosedError()
+	}
+
+	var response *Response
+	select {
+	case response = <-request.replyChan:
+		// pass
+	case <-deadline:
+		return nil, NewConnectionError("Response read timeout")
+	case <-conn.exit:
+		return nil, ConnectionClosedError()
+	}
+
+	result = response.Data
+	err = response.Error
+	return
+}
+
+func (conn *Connection) Execute(q Query) (result []Tuple, err error) {
+	return conn.ExecuteOptions(q, nil)
 }
 
 func (conn *Connection) Close() {
-	conn.closeExit.Do(func() {
-		close(conn.requestChan)
-		close(conn.exit)
-	})
+	conn.stop()
 	<-conn.closed
 }

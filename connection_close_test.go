@@ -15,7 +15,10 @@ func TestClose(t *testing.T) {
 	assert.NoError(err)
 
 	listener, err := net.ListenTCP("tcp", raddr)
-	assert.NoError(err)
+	if !assert.NoError(err) {
+		return
+	}
+	defer listener.Close()
 
 	// go func() {
 	// 	time.Sleep(time.Second)
@@ -26,7 +29,9 @@ func TestClose(t *testing.T) {
 	// pp.Println(listener.Addr().String())
 
 	conn, err := Connect(listener.Addr().String(), nil)
-	assert.NoError(err)
+	if !assert.NoError(err) {
+		return
+	}
 
 	var wg sync.WaitGroup
 
@@ -45,16 +50,49 @@ func TestClose(t *testing.T) {
 	}()
 
 	time.Sleep(10 * time.Millisecond)
-	// listener.Accept()
-	// pp.Println("close")
 	conn.Close()
 
-	// pp.Println("wait")
 	wg.Wait()
+}
 
-	// pp.Println("finish")
+func TestCloseExecute(t *testing.T) {
+	assert := assert.New(t)
+	raddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
+	assert.NoError(err)
 
-	// assert.Nil(data)
-	// assert.Error(err)
-	// assert.Equal("Space 0 does not exist", err.Error())
+	listener, err := net.ListenTCP("tcp", raddr)
+	if !assert.NoError(err) {
+		return
+	}
+
+	conn, err := Connect(listener.Addr().String(), nil)
+	if !assert.NoError(err) {
+		return
+	}
+
+	go func() {
+		time.Sleep(time.Duration(100 * time.Millisecond))
+		listener.Close()
+	}()
+
+	data, err := conn.Execute(&Select{
+		Value: PackInt(1),
+		Space: 1,
+	})
+
+	assert.Nil(data)
+	assert.Error(err)
+	assert.True(err.(Error).Connection())
+
+	time.Sleep(100 * time.Millisecond)
+
+	// execute on closed connection
+	data, err = conn.Execute(&Select{
+		Value: PackInt(1),
+		Space: 1,
+	})
+
+	assert.Nil(data)
+	assert.Error(err)
+	assert.True(err.(Error).Connection())
 }

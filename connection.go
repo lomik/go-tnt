@@ -1,8 +1,6 @@
 package tnt
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"math"
 	"net"
@@ -10,7 +8,7 @@ import (
 	"time"
 )
 
-func Connect(addr string, opt *Options) (connection *Connection, err error) {
+func Connect(addr string, opts *Options) (connection *Connection, err error) {
 	connection = &Connection{
 		addr:        addr,
 		requests:    make(map[uint32]*request),
@@ -19,7 +17,26 @@ func Connect(addr string, opt *Options) (connection *Connection, err error) {
 		closed:      make(chan bool),
 	}
 
-	go connection.worker()
+	if opts == nil {
+		opts = &Options{}
+	}
+
+	if opts.ConnectTimeout.Nanoseconds() == 0 {
+		opts.ConnectTimeout = time.Duration(time.Second)
+	}
+
+	if opts.QueryTimeout.Nanoseconds() == 0 {
+		opts.QueryTimeout = time.Duration(time.Second)
+	}
+
+	connection.queryTimeout = opts.QueryTimeout
+
+	connection.tcpConn, err = net.DialTimeout("tcp", addr, opts.ConnectTimeout)
+	if err != nil {
+		return
+	}
+
+	go connection.worker(connection.tcpConn)
 
 	return
 }
@@ -37,7 +54,7 @@ func (conn *Connection) newRequest(r *request) {
 	old, exists := conn.requests[requestID]
 	if exists {
 		old.replyChan <- &Response{
-			Error: fmt.Errorf("Shred old requests"),
+			Error: NewConnectionError("Shred old requests"), // wtf?
 		}
 		close(old.replyChan)
 		delete(conn.requests, requestID)
@@ -57,98 +74,70 @@ func (conn *Connection) handleReply(res *Response) {
 	}
 }
 
-func (conn *Connection) worker() {
-	// @TODO: Send all waiting requests?
+func (conn *Connection) stop() {
+	conn.closeOnce.Do(func() {
+		// debug.PrintStack()
+		close(conn.exit)
+		conn.tcpConn.Close()
+	})
+}
 
-	var tcpConn net.Conn
-	var err error
+func (conn *Connection) worker(tcpConn net.Conn) {
 
-WORKER_LOOP:
-	for {
-		select {
-		case <-conn.exit:
-			break WORKER_LOOP
-		default:
-		}
+	var wg sync.WaitGroup
 
-		// pp.Println("connect")
-		tcpConn, err = net.DialTimeout("tcp", conn.addr, time.Duration(time.Second))
-		if err != nil {
-			time.Sleep(time.Second)
-			// @TODO: log err
-			continue
-		}
+	readChan := make(chan *Response, 256)
+	writeChan := make(chan *request, 256)
 
-		var wg sync.WaitGroup
+	wg.Add(3)
 
-		readChan := make(chan *Response, 256)
-		writeChan := make(chan *request, 256)
+	go func() {
+		conn.router(readChan, writeChan, conn.exit)
+		conn.stop()
+		wg.Done()
+		// pp.Println("router")
+	}()
 
-		stopChan := make(chan bool)
-		var stopOnce sync.Once
+	go func() {
+		writer(tcpConn, writeChan, conn.exit)
+		conn.stop()
+		wg.Done()
+		// pp.Println("writer")
+	}()
 
-		stop := func() {
-			stopOnce.Do(func() {
-				// debug.PrintStack()
-				tcpConn.Close()
-				close(stopChan)
-			})
-		}
+	go func() {
+		reader(tcpConn, readChan)
+		conn.stop()
+		wg.Done()
+		// pp.Println("reader")
+	}()
 
-		wg.Add(4)
-
-		go func() {
-			select {
-			case <-conn.exit:
-				// break
-			case <-stopChan:
-				// break
-			}
-			stop()
-			wg.Done()
-
-			// pp.Println("wtf")
-		}()
-
-		go func() {
-			conn.router(readChan, writeChan, stopChan)
-			stop()
-			wg.Done()
-			// pp.Println("router")
-		}()
-
-		go func() {
-			writer(tcpConn, writeChan, stopChan)
-			stop()
-			wg.Done()
-			// pp.Println("writer")
-		}()
-
-		go func() {
-			reader(tcpConn, readChan)
-			stop()
-			wg.Done()
-			// pp.Println("reader")
-		}()
-
-		wg.Wait()
-	}
+	wg.Wait()
 
 	// send error reply to all pending requests
-	for requestID, request := range conn.requests {
-		request.replyChan <- &Response{
-			Error: errors.New("Connection closed"),
+	for requestID, req := range conn.requests {
+		req.replyChan <- &Response{
+			Error: ConnectionClosedError(),
 		}
-		close(request.replyChan)
+		close(req.replyChan)
 		delete(conn.requests, requestID)
 	}
 
+	var req *request
+
+FETCH_INPUT:
 	// and to all requests in input queue
-	for request := range conn.requestChan {
-		request.replyChan <- &Response{
-			Error: errors.New("Connection closed"),
+	for {
+		select {
+		case req = <-conn.requestChan:
+			// pass
+		default: // all fetched
+			break FETCH_INPUT
 		}
-		close(request.replyChan)
+		req.replyChan <- &Response{
+			Error: ConnectionClosedError(),
+		}
+		close(req.replyChan)
 	}
 
 	close(conn.closed)

@@ -11,7 +11,9 @@ func TestSelect(t *testing.T) {
 	assert := assert.New(t)
 
 	conn, err := Connect("192.168.99.100:2001", nil)
-	assert.NoError(err)
+	if !assert.NoError(err) {
+		return
+	}
 	defer conn.Close()
 
 	data, err := conn.Execute(&Select{
@@ -27,7 +29,9 @@ func TestInsert(t *testing.T) {
 	assert := assert.New(t)
 
 	conn, err := Connect("192.168.99.100:2001", nil)
-	assert.NoError(err)
+	if !assert.NoError(err) {
+		return
+	}
 	defer conn.Close()
 
 	value1 := uint32(rand.Int31())

@@ -72,7 +72,7 @@ func UnpackBody(body []byte) (*Response, error) {
 		if len(errorMsg) > 0 && errorMsg[len(errorMsg)-1] == 0x0 {
 			errorMsg = errorMsg[:len(errorMsg)-1]
 		}
-		response.Error = errors.New(string(errorMsg))
+		response.Error = NewQueryError(string(errorMsg))
 		return response, nil
 	}
 
