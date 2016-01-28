@@ -29,6 +29,11 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 		opts.QueryTimeout = time.Duration(time.Second)
 	}
 
+	if opts.MemcacheSpace == 0 {
+		opts.MemcacheSpace = 23
+	}
+
+	connection.memcacheSpace = opts.MemcacheSpace
 	connection.queryTimeout = opts.QueryTimeout
 
 	connection.tcpConn, err = net.DialTimeout("tcp", addr, opts.ConnectTimeout)

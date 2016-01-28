@@ -61,6 +61,7 @@ type Response struct {
 type Options struct {
 	ConnectTimeout time.Duration
 	QueryTimeout   time.Duration
+	MemcacheSpace  uint32
 }
 
 type QueryOptions struct {
@@ -68,15 +69,17 @@ type QueryOptions struct {
 }
 
 type Connection struct {
-	addr         string
-	requestID    uint32
-	requests     map[uint32]*request
-	requestChan  chan *request
-	closeOnce    sync.Once
-	exit         chan bool
-	closed       chan bool
-	tcpConn      net.Conn
-	queryTimeout time.Duration
+	addr          string
+	requestID     uint32
+	requests      map[uint32]*request
+	requestChan   chan *request
+	closeOnce     sync.Once
+	exit          chan bool
+	closed        chan bool
+	tcpConn       net.Conn
+	queryTimeout  time.Duration
+	memcacheSpace uint32
+	memcacheCas   uint64
 }
 
 func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tuple, err error) {
