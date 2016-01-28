@@ -56,6 +56,10 @@ func main() {
 	}()
 
 	worker := func() {
+conn, err := tnt.Connect(*server, nil)
+    if err != nil {
+        log.Fatal(err)
+    }
 		for {
 			data, err := conn.Execute(&tnt.Select{
 				Value: tnt.PackInt(value1),
@@ -71,5 +75,9 @@ func main() {
 		}
 	}
 
+    go worker()
+    go worker()
+    go worker()
+    go worker()
 	worker()
 }
