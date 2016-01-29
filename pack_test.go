@@ -216,7 +216,7 @@ func TestPackSelect(t *testing.T) {
 		pythonIproto("pack_select(0, 42)"),
 		(&Select{
 			Value: PackInt(42),
-		}).Pack(0),
+		}).Pack(0, 0),
 	)
 
 	assert.Equal(
@@ -227,7 +227,7 @@ func TestPackSelect(t *testing.T) {
 			Offset: 13,
 			Limit:  14,
 			Index:  15,
-		}).Pack(0),
+		}).Pack(0, 0),
 	)
 
 	assert.Equal(
@@ -238,7 +238,7 @@ func TestPackSelect(t *testing.T) {
 				Tuple{PackInt(13), PackInt(14)},
 			},
 			Space: 1,
-		}).Pack(0),
+		}).Pack(0, 0),
 	)
 }
 
@@ -252,7 +252,7 @@ func TestPackInsert(t *testing.T) {
 				PackInt(42),
 				PackInt(15),
 			},
-		}).Pack(0),
+		}).Pack(0, 0),
 	)
 
 	assert.Equal(
@@ -264,6 +264,6 @@ func TestPackInsert(t *testing.T) {
 				PackInt(12),
 			},
 			ReturnTuple: true,
-		}).Pack(0),
+		}).Pack(0, 0),
 	)
 }

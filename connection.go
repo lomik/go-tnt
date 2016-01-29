@@ -1,9 +1,12 @@
 package tnt
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -33,10 +36,31 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 		opts.MemcacheSpace = 23
 	}
 
+	var defaultSpace uint32
+
+	splittedAddr := strings.Split(addr, "/")
+	remoteAddr := splittedAddr[0]
+	if len(splittedAddr) > 1 {
+		i, err := strconv.Atoi(splittedAddr[1])
+		if err != nil {
+			return nil, fmt.Errorf("Wrong space: %s", splittedAddr[1])
+		}
+		defaultSpace = uint32(i)
+	}
+
+	if opts.DefaultSpace > 0 {
+		defaultSpace = opts.DefaultSpace
+	}
+
+	if defaultSpace == 0 {
+		defaultSpace = 1
+	}
+
 	connection.memcacheSpace = opts.MemcacheSpace
 	connection.queryTimeout = opts.QueryTimeout
+	connection.defaultSpace = defaultSpace
 
-	connection.tcpConn, err = net.DialTimeout("tcp", addr, opts.ConnectTimeout)
+	connection.tcpConn, err = net.DialTimeout("tcp", remoteAddr, opts.ConnectTimeout)
 	if err != nil {
 		return
 	}
@@ -66,7 +90,7 @@ func (conn *Connection) newRequest(r *request) {
 	}
 
 	// pp.Println(r)
-	r.raw = r.query.Pack(requestID)
+	r.raw = r.query.Pack(requestID, conn.defaultSpace)
 	conn.requests[requestID] = r
 }
 

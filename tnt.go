@@ -16,7 +16,7 @@ const requestTypeSelect = 17
 const requestTypeUpdate = 19
 
 type Query interface {
-	Pack(requestID uint32) []byte
+	Pack(requestID uint32, defaultSpace uint32) []byte
 }
 
 type request struct {
@@ -62,6 +62,7 @@ type Options struct {
 	ConnectTimeout time.Duration
 	QueryTimeout   time.Duration
 	MemcacheSpace  uint32
+	DefaultSpace   uint32
 }
 
 type QueryOptions struct {
@@ -69,17 +70,19 @@ type QueryOptions struct {
 }
 
 type Connection struct {
-	addr          string
-	requestID     uint32
-	requests      map[uint32]*request
-	requestChan   chan *request
-	closeOnce     sync.Once
-	exit          chan bool
-	closed        chan bool
-	tcpConn       net.Conn
+	addr        string
+	requestID   uint32
+	requests    map[uint32]*request
+	requestChan chan *request
+	closeOnce   sync.Once
+	exit        chan bool
+	closed      chan bool
+	tcpConn     net.Conn
+	memcacheCas uint64
+	// options
 	queryTimeout  time.Duration
 	memcacheSpace uint32
-	memcacheCas   uint64
+	defaultSpace  uint32
 }
 
 func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tuple, err error) {

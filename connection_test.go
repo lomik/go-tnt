@@ -18,11 +18,11 @@ func TestSelect(t *testing.T) {
 
 	data, err := conn.Execute(&Select{
 		Value: PackInt(0),
-		Space: 0,
+		Space: 15,
 	})
 	assert.Nil(data)
 	assert.Error(err)
-	assert.Equal("Space 0 does not exist", err.Error())
+	assert.Equal("Space 15 does not exist", err.Error())
 }
 
 func TestInsert(t *testing.T) {
@@ -40,7 +40,6 @@ func TestInsert(t *testing.T) {
 	value4 := uint32(rand.Int31())
 
 	conn.Execute(&Insert{
-		Space: 1,
 		Tuple: Tuple{
 			PackInt(value1),
 			PackInt(value3),
@@ -48,7 +47,6 @@ func TestInsert(t *testing.T) {
 	})
 
 	conn.Execute(&Insert{
-		Space: 1,
 		Tuple: Tuple{
 			PackInt(value1),
 			PackInt(value4),
@@ -56,7 +54,6 @@ func TestInsert(t *testing.T) {
 	})
 
 	conn.Execute(&Insert{
-		Space: 1,
 		Tuple: Tuple{
 			PackInt(value2),
 			PackInt(value4),
@@ -67,7 +64,6 @@ func TestInsert(t *testing.T) {
 
 	data, err := conn.Execute(&Select{
 		Value: PackInt(value1),
-		Space: 1,
 	})
 
 	assert.NoError(err)
@@ -84,7 +80,6 @@ func TestInsert(t *testing.T) {
 	// select 2
 	data, err = conn.Execute(&Select{
 		Value: PackInt(value4),
-		Space: 1,
 		Index: 1,
 	})
 
@@ -92,4 +87,40 @@ func TestInsert(t *testing.T) {
 	assert.Equal(2, len(data))
 	assert.Equal(Field(PackInt(value4)), data[0][1])
 	assert.Equal(Field(PackInt(value4)), data[1][1])
+}
+
+func TestDefaultSpace(t *testing.T) {
+	assert := assert.New(t)
+
+	conn, err := Connect("192.168.99.100:2001/24", nil)
+	if !assert.NoError(err) {
+		return
+	}
+	defer conn.Close()
+
+	data, err := conn.Execute(&Select{
+		Value: PackInt(0),
+	})
+	assert.Nil(data)
+	assert.Error(err)
+	assert.Equal("Space 24 does not exist", err.Error())
+}
+
+func TestDefaultSpace2(t *testing.T) {
+	assert := assert.New(t)
+
+	conn, err := Connect("192.168.99.100:2001/24", &Options{
+		DefaultSpace: 48,
+	})
+	if !assert.NoError(err) {
+		return
+	}
+	defer conn.Close()
+
+	data, err := conn.Execute(&Select{
+		Value: PackInt(0),
+	})
+	assert.Nil(data)
+	assert.Error(err)
+	assert.Equal("Space 48 does not exist", err.Error())
 }

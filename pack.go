@@ -112,7 +112,7 @@ func packTuple(value Tuple) []byte {
 	return buffer.Bytes()
 }
 
-func (q *Select) Pack(requestID uint32) []byte {
+func (q *Select) Pack(requestID uint32, defaultSpace uint32) []byte {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
@@ -121,7 +121,11 @@ func (q *Select) Pack(requestID uint32) []byte {
 		limit = 0xffffffff
 	}
 
-	bodyBuffer.Write(PackInt(q.Space))
+	if q.Space != 0 {
+		bodyBuffer.Write(PackInt(q.Space))
+	} else {
+		bodyBuffer.Write(PackInt(defaultSpace))
+	}
 	bodyBuffer.Write(PackInt(q.Index))
 	bodyBuffer.Write(PackInt(q.Offset))
 	bodyBuffer.Write(PackInt(limit))
@@ -153,11 +157,15 @@ func (q *Select) Pack(requestID uint32) []byte {
 	return buffer.Bytes()
 }
 
-func (q *Insert) Pack(requestID uint32) []byte {
+func (q *Insert) Pack(requestID uint32, defaultSpace uint32) []byte {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
-	bodyBuffer.Write(PackInt(q.Space))
+	if q.Space != 0 {
+		bodyBuffer.Write(PackInt(q.Space))
+	} else {
+		bodyBuffer.Write(PackInt(defaultSpace))
+	}
 	if q.ReturnTuple {
 		bodyBuffer.Write(packedInt1)
 	} else {

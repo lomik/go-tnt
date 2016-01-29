@@ -93,7 +93,7 @@ type memcacheMetaInfo struct {
 }
 
 func BenchmarkConcatBytes5(b *testing.B) {
-	// from Gunstvin's tarantool.space.go:memToTuple
+	// from Gunstvin's tarantool/space.go:memToTuple
 	assert := assert.New(b)
 	metaInfo := struct {
 		expires uint32
