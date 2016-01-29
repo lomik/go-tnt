@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-type Field []byte
-type Tuple []Field
+type Bytes []byte
+type Tuple []Bytes
 
 const requestTypeCall = 22
 const requestTypeDelete = 21
@@ -28,13 +28,13 @@ type request struct {
 type Select struct {
 	// Scalar
 	// This request is looking for one single record
-	Value Field
+	Value Bytes
 
 	// List of scalars
 	// This request is looking for several records using single-valued index
 	// Ex: select(space_no, index_no, [1, 2, 3])
 	// Transform a list of scalar values to a list of tuples
-	Values []Field
+	Values []Bytes
 
 	// List of tuples
 	// This request is looking for serveral records using composite index
@@ -51,6 +51,27 @@ type Insert struct {
 	Space       uint32
 	ReturnTuple bool
 }
+
+type Delete struct {
+	// Scalar
+	// This request is looking for one single record
+	Value Bytes
+
+	// List of scalars
+	// This request is looking for several records using single-valued index
+	// Ex: select(space_no, index_no, [1, 2, 3])
+	// Transform a list of scalar values to a list of tuples
+	Values []Bytes
+
+	Space       uint32
+	ReturnTuple bool
+
+	// Index  uint32
+}
+
+var _ Query = (*Select)(nil)
+var _ Query = (*Insert)(nil)
+var _ Query = (*Delete)(nil)
 
 type Response struct {
 	Data      []Tuple

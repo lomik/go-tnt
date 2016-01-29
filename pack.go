@@ -181,3 +181,36 @@ func (q *Insert) Pack(requestID uint32, defaultSpace uint32) []byte {
 	return buffer.Bytes()
 
 }
+
+func (q *Delete) Pack(requestID uint32, defaultSpace uint32) []byte {
+	var bodyBuffer bytes.Buffer
+	var buffer bytes.Buffer
+
+	if q.Space != 0 {
+		bodyBuffer.Write(PackInt(q.Space))
+	} else {
+		bodyBuffer.Write(PackInt(defaultSpace))
+	}
+	if q.ReturnTuple {
+		bodyBuffer.Write(packedInt1)
+	} else {
+		bodyBuffer.Write(packedInt0)
+	}
+
+	if q.Value != nil {
+		bodyBuffer.Write(packTuple(Tuple{q.Value}))
+	} else if q.Values != nil {
+		cnt := len(q.Values)
+		for i := 0; i < cnt; i++ {
+			bodyBuffer.Write(packTuple(Tuple{q.Values[i]}))
+		}
+	}
+
+	buffer.Write(PackInt(requestTypeDelete))
+	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
+	buffer.Write(PackInt(requestID))
+	buffer.Write(bodyBuffer.Bytes())
+
+	return buffer.Bytes()
+
+}

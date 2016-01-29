@@ -190,7 +190,7 @@ func TestPackFieldStr(t *testing.T) {
 	for value := range values(64) {
 		assert.Equal(
 			pythonIproto("pack_str(\"%d\")", value),
-			packFieldStr(Field(fmt.Sprintf("%d", value))),
+			packFieldStr(Bytes(fmt.Sprintf("%d", value))),
 		)
 	}
 }
@@ -201,10 +201,10 @@ func TestPackTuple(t *testing.T) {
 	assert.Equal(
 		pythonIproto("pack_tuple([10,42,15,\"hello world\"])"),
 		packTuple(Tuple{
-			Field(PackInt(10)),
-			Field(PackInt(42)),
-			Field(PackInt(15)),
-			Field("hello world"),
+			PackInt(10),
+			PackInt(42),
+			PackInt(15),
+			Bytes("hello world"),
 		}),
 	)
 }

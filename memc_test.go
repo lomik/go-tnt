@@ -19,14 +19,24 @@ func TestMem(t *testing.T) {
 
 	key := fmt.Sprintf("key_%d", time.Now().Unix())
 
+	// get empty
 	data, err := conn.MemGet(key)
 	assert.NoError(err)
 	assert.Nil(data)
 
+	// set
 	err = conn.MemSet(key, []byte("hello"), uint32(time.Now().Add(time.Duration(time.Hour)).Unix()))
 	assert.NoError(err)
 
 	data, err = conn.MemGet(key)
 	assert.NoError(err)
 	assert.Equal([]byte("hello"), data)
+
+	// delete
+	err = conn.MemDelete(key)
+	assert.NoError(err)
+
+	data, err = conn.MemGet(key)
+	assert.NoError(err)
+	assert.Nil(data)
 }

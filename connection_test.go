@@ -85,8 +85,8 @@ func TestInsert(t *testing.T) {
 
 	assert.NoError(err)
 	assert.Equal(2, len(data))
-	assert.Equal(Field(PackInt(value4)), data[0][1])
-	assert.Equal(Field(PackInt(value4)), data[1][1])
+	assert.Equal(Bytes(PackInt(value4)), data[0][1])
+	assert.Equal(Bytes(PackInt(value4)), data[1][1])
 }
 
 func TestDefaultSpace(t *testing.T) {
