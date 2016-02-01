@@ -105,7 +105,7 @@ func TestDefaultSpace(t *testing.T) {
 	assert.NoError(err)
 	defer tearDown()
 
-	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d/24", primaryPort), nil)
 	if !assert.NoError(err) {
 		return
 	}
@@ -126,7 +126,9 @@ func TestDefaultSpace2(t *testing.T) {
 	assert.NoError(err)
 	defer tearDown()
 
-	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d/24", primaryPort), &Options{
+		DefaultSpace: 48,
+	})
 	if !assert.NoError(err) {
 		return
 	}
