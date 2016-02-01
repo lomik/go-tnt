@@ -1,6 +1,7 @@
 package tnt
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 
@@ -10,7 +11,11 @@ import (
 func TestSelect(t *testing.T) {
 	assert := assert.New(t)
 
-	conn, err := Connect("192.168.99.100:2001", nil)
+	primaryPort, tearDown, err := setUp()
+	assert.NoError(err)
+	defer tearDown()
+
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
 	if !assert.NoError(err) {
 		return
 	}
@@ -28,7 +33,11 @@ func TestSelect(t *testing.T) {
 func TestInsert(t *testing.T) {
 	assert := assert.New(t)
 
-	conn, err := Connect("192.168.99.100:2001", nil)
+	primaryPort, tearDown, err := setUp()
+	assert.NoError(err)
+	defer tearDown()
+
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
 	if !assert.NoError(err) {
 		return
 	}
@@ -92,7 +101,11 @@ func TestInsert(t *testing.T) {
 func TestDefaultSpace(t *testing.T) {
 	assert := assert.New(t)
 
-	conn, err := Connect("192.168.99.100:2001/24", nil)
+	primaryPort, tearDown, err := setUp()
+	assert.NoError(err)
+	defer tearDown()
+
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
 	if !assert.NoError(err) {
 		return
 	}
@@ -109,9 +122,11 @@ func TestDefaultSpace(t *testing.T) {
 func TestDefaultSpace2(t *testing.T) {
 	assert := assert.New(t)
 
-	conn, err := Connect("192.168.99.100:2001/24", &Options{
-		DefaultSpace: 48,
-	})
+	primaryPort, tearDown, err := setUp()
+	assert.NoError(err)
+	defer tearDown()
+
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
 	if !assert.NoError(err) {
 		return
 	}

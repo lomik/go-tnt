@@ -3,6 +3,7 @@ package tnt
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"testing"
 )
@@ -39,7 +40,10 @@ func BenchmarkPackIntAlt1(b *testing.B) {
 func BenchmarkSelect(b *testing.B) {
 	b.SkipNow()
 
-	conn, err := Connect("192.168.99.100:2001", nil)
+	primaryPort, tearDown, err := setUp()
+	defer tearDown()
+
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
 	defer conn.Close()
 
 	if err != nil {

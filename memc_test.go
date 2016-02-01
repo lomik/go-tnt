@@ -11,7 +11,11 @@ import (
 func TestMem(t *testing.T) {
 	assert := assert.New(t)
 
-	conn, err := Connect("192.168.99.100:2001", nil)
+	primaryPort, tearDown, err := setUp()
+	assert.NoError(err)
+	defer tearDown()
+
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
 	if !assert.NoError(err) {
 		return
 	}
