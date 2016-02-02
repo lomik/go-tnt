@@ -62,7 +62,7 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 
 	connection.tcpConn, err = net.DialTimeout("tcp", remoteAddr, opts.ConnectTimeout)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	go connection.worker(connection.tcpConn)

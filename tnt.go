@@ -156,3 +156,12 @@ func (conn *Connection) Close() {
 	conn.stop()
 	<-conn.closed
 }
+
+func (conn *Connection) IsClosed() bool {
+	select {
+	case <-conn.exit:
+		return true
+	default:
+		return false
+	}
+}
