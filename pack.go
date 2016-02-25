@@ -214,3 +214,24 @@ func (q *Delete) Pack(requestID uint32, defaultSpace uint32) []byte {
 	return buffer.Bytes()
 
 }
+
+func (q *Call) Pack(requestID uint32, defaultSpace uint32) []byte {
+	var bodyBuffer bytes.Buffer
+	var buffer bytes.Buffer
+
+	if q.ReturnTuple {
+		bodyBuffer.Write(packedInt1)
+	} else {
+		bodyBuffer.Write(packedInt0)
+	}
+	bodyBuffer.Write(packFieldStr(q.Name))
+	bodyBuffer.Write(packTuple(q.Tuple))
+
+	buffer.Write(PackInt(requestTypeCall))
+	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
+	buffer.Write(PackInt(requestID))
+	buffer.Write(bodyBuffer.Bytes())
+
+	return buffer.Bytes()
+
+}

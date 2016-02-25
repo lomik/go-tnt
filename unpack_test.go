@@ -12,7 +12,7 @@ func TestUnpackInt(t *testing.T) {
 	for value := range values(32) {
 		packed := PackInt(uint32(value))
 		assert.Equal(
-			value,
+			uint32(value),
 			UnpackInt(packed),
 		)
 	}
@@ -25,7 +25,7 @@ func TestUnpackIntBase128(t *testing.T) {
 		packed := PackIntBase128(uint32(value))
 
 		result, bytes, err := unpackIntBase128(packed)
-		assert.Equal(value, result)
+		assert.Equal(uint32(value), result)
 		assert.NoError(err)
 		assert.Equal(len(packed), bytes)
 	}

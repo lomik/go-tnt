@@ -69,9 +69,16 @@ type Delete struct {
 	// Index  uint32
 }
 
+type Call struct {
+	Name        Bytes
+	Tuple       Tuple
+	ReturnTuple bool
+}
+
 var _ Query = (*Select)(nil)
 var _ Query = (*Insert)(nil)
 var _ Query = (*Delete)(nil)
+var _ Query = (*Call)(nil)
 
 type Response struct {
 	Data      []Tuple
