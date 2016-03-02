@@ -52,10 +52,6 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 		defaultSpace = opts.DefaultSpace
 	}
 
-	if defaultSpace == 0 {
-		defaultSpace = 1
-	}
-
 	connection.memcacheSpace = opts.MemcacheSpace
 	connection.queryTimeout = opts.QueryTimeout
 	connection.defaultSpace = defaultSpace
