@@ -9,7 +9,7 @@ import (
 
 func setUp() (int, func(), error) {
 	cfg := &tntctl.TarantoolConfig{}
-	spaceCfg := cfg.AddSpace(1, true)
+	spaceCfg := cfg.AddSpace(0, true)
 	spaceCfg.AddIndex(true, "HASH").AddKey(0, "NUM")
 	spaceCfg.AddIndex(false, "TREE").AddKey(1, "NUM")
 
