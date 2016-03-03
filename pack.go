@@ -1,6 +1,9 @@
 package tnt
 
-import "bytes"
+import (
+	"bytes"
+	"strconv"
+)
 
 var packedInt0 = PackInt(0)
 var packedInt1 = PackInt(1)
@@ -112,7 +115,7 @@ func packTuple(value Tuple) []byte {
 	return buffer.Bytes()
 }
 
-func (q *Select) Pack(requestID uint32, defaultSpace uint32) []byte {
+func (q *Select) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
@@ -121,8 +124,12 @@ func (q *Select) Pack(requestID uint32, defaultSpace uint32) []byte {
 		limit = 0xffffffff
 	}
 
-	if q.Space != 0 {
-		bodyBuffer.Write(PackInt(q.Space))
+	if q.Space != "" {
+		i, err := strconv.Atoi(q.Space)
+		if err != nil {
+			return nil, err
+		}
+		bodyBuffer.Write(PackInt(uint32(i)))
 	} else {
 		bodyBuffer.Write(PackInt(defaultSpace))
 	}
@@ -154,18 +161,23 @@ func (q *Select) Pack(requestID uint32, defaultSpace uint32) []byte {
 	buffer.Write(PackInt(requestID))
 	buffer.Write(bodyBuffer.Bytes())
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
-func (q *Insert) Pack(requestID uint32, defaultSpace uint32) []byte {
+func (q *Insert) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
-	if q.Space != 0 {
-		bodyBuffer.Write(PackInt(q.Space))
+	if q.Space != "" {
+		i, err := strconv.Atoi(q.Space)
+		if err != nil {
+			return nil, err
+		}
+		bodyBuffer.Write(PackInt(uint32(i)))
 	} else {
 		bodyBuffer.Write(PackInt(defaultSpace))
 	}
+
 	if q.ReturnTuple {
 		bodyBuffer.Write(packedInt1)
 	} else {
@@ -178,19 +190,24 @@ func (q *Insert) Pack(requestID uint32, defaultSpace uint32) []byte {
 	buffer.Write(PackInt(requestID))
 	buffer.Write(bodyBuffer.Bytes())
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 
 }
 
-func (q *Delete) Pack(requestID uint32, defaultSpace uint32) []byte {
+func (q *Delete) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
-	if q.Space != 0 {
-		bodyBuffer.Write(PackInt(q.Space))
+	if q.Space != "" {
+		i, err := strconv.Atoi(q.Space)
+		if err != nil {
+			return nil, err
+		}
+		bodyBuffer.Write(PackInt(uint32(i)))
 	} else {
 		bodyBuffer.Write(PackInt(defaultSpace))
 	}
+
 	if q.ReturnTuple {
 		bodyBuffer.Write(packedInt1)
 	} else {
@@ -211,11 +228,11 @@ func (q *Delete) Pack(requestID uint32, defaultSpace uint32) []byte {
 	buffer.Write(PackInt(requestID))
 	buffer.Write(bodyBuffer.Bytes())
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 
 }
 
-func (q *Call) Pack(requestID uint32, defaultSpace uint32) []byte {
+func (q *Call) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
@@ -232,6 +249,6 @@ func (q *Call) Pack(requestID uint32, defaultSpace uint32) []byte {
 	buffer.Write(PackInt(requestID))
 	buffer.Write(bodyBuffer.Bytes())
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 
 }

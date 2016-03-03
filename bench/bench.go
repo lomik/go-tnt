@@ -39,7 +39,7 @@ func main() {
 	conn, err := connector.Connect()
 	if err == nil {
 		conn.Execute(&tnt.Insert{
-			Space: 1,
+			Space: "1",
 			Tuple: tnt.Tuple{
 				tnt.PackInt(value1),
 				tnt.PackInt(value2),
@@ -78,7 +78,7 @@ func main() {
 			}
 			data, err := conn.Execute(&tnt.Select{
 				Value: tnt.PackInt(value1),
-				Space: 1,
+				Space: "1",
 			})
 			if err != nil {
 				atomic.AddInt64(&errorCount, 1)

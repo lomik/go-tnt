@@ -32,8 +32,8 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 		opts.QueryTimeout = time.Duration(time.Second)
 	}
 
-	if opts.MemcacheSpace == 0 {
-		opts.MemcacheSpace = 23
+	if opts.MemcacheSpace == "" {
+		opts.MemcacheSpace = "23"
 	}
 
 	var defaultSpace uint32
@@ -48,8 +48,12 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 		defaultSpace = uint32(i)
 	}
 
-	if opts.DefaultSpace > 0 {
-		defaultSpace = opts.DefaultSpace
+	if opts.DefaultSpace != "" {
+		i, err := strconv.Atoi(splittedAddr[1])
+		if err != nil {
+			return nil, fmt.Errorf("Wrong space: %s", splittedAddr[1])
+		}
+		defaultSpace = uint32(i)
 	}
 
 	connection.memcacheSpace = opts.MemcacheSpace
@@ -74,7 +78,9 @@ func (conn *Connection) nextID() uint32 {
 	return conn.requestID
 }
 
-func (conn *Connection) newRequest(r *request) {
+func (conn *Connection) newRequest(r *request) error {
+	var err error
+
 	requestID := conn.nextID()
 	old, exists := conn.requests[requestID]
 	if exists {
@@ -85,9 +91,18 @@ func (conn *Connection) newRequest(r *request) {
 		delete(conn.requests, requestID)
 	}
 
-	// pp.Println(r)
-	r.raw = r.query.Pack(requestID, conn.defaultSpace)
+	r.raw, err = r.query.Pack(requestID, conn.defaultSpace)
+	if err != nil {
+		r.replyChan <- &Response{
+			Error: &QueryError{
+				error: err,
+			},
+		}
+		return err
+	}
+
 	conn.requests[requestID] = r
+	return nil
 }
 
 func (conn *Connection) handleReply(res *Response) {
@@ -170,6 +185,7 @@ FETCH_INPUT:
 
 func (conn *Connection) router(readChan chan *Response, writeChan chan *request, stopChan chan bool) {
 	// close(readChan) for stop router
+	var err error
 	requestChan := conn.requestChan
 
 	readChanThreshold := cap(readChan) / 10
@@ -189,13 +205,14 @@ ROUTER_LOOP:
 				break ROUTER_LOOP
 			}
 
-			conn.newRequest(r)
-
-			select {
-			case writeChan <- r:
-				// pass
-			case <-stopChan:
-				break ROUTER_LOOP
+			err = conn.newRequest(r)
+			if err == nil {
+				select {
+				case writeChan <- r:
+					// pass
+				case <-stopChan:
+					break ROUTER_LOOP
+				}
 			}
 		case <-stopChan:
 			break ROUTER_LOOP

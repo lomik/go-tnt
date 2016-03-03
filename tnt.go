@@ -16,7 +16,7 @@ const requestTypeSelect = 17
 const requestTypeUpdate = 19
 
 type Query interface {
-	Pack(requestID uint32, defaultSpace uint32) []byte
+	Pack(requestID uint32, defaultSpace uint32) ([]byte, error)
 }
 
 type request struct {
@@ -40,7 +40,7 @@ type Select struct {
 	// This request is looking for serveral records using composite index
 	Tuples []Tuple
 
-	Space  uint32
+	Space  string
 	Index  uint32
 	Limit  uint32 // 0x0 == 0xffffffff
 	Offset uint32
@@ -48,7 +48,7 @@ type Select struct {
 
 type Insert struct {
 	Tuple       Tuple
-	Space       uint32
+	Space       string
 	ReturnTuple bool
 }
 
@@ -63,7 +63,7 @@ type Delete struct {
 	// Transform a list of scalar values to a list of tuples
 	Values []Bytes
 
-	Space       uint32
+	Space       string
 	ReturnTuple bool
 
 	// Index  uint32
@@ -89,8 +89,8 @@ type Response struct {
 type Options struct {
 	ConnectTimeout time.Duration
 	QueryTimeout   time.Duration
-	MemcacheSpace  uint32
-	DefaultSpace   uint32
+	MemcacheSpace  string
+	DefaultSpace   string
 }
 
 type QueryOptions struct {
@@ -109,7 +109,7 @@ type Connection struct {
 	memcacheCas uint64
 	// options
 	queryTimeout  time.Duration
-	memcacheSpace uint32
+	memcacheSpace string
 	defaultSpace  uint32
 }
 

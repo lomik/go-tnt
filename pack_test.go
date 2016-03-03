@@ -212,58 +212,79 @@ func TestPackTuple(t *testing.T) {
 func TestPackSelect(t *testing.T) {
 	assert := assert.New(t)
 
-	assert.Equal(
-		pythonIproto("pack_select(0, 42)"),
-		(&Select{
-			Value: PackInt(42),
-		}).Pack(0, 0),
-	)
+	v, _ := (&Select{Value: PackInt(42)}).Pack(0, 0)
+	assert.Equal(pythonIproto("pack_select(0, 42)"), v)
+
+	v, _ = (&Select{
+		Values: Tuple{PackInt(11), PackInt(12)},
+		Space:  "10",
+		Offset: 13,
+		Limit:  14,
+		Index:  15,
+	}).Pack(0, 0)
 
 	assert.Equal(
 		pythonIproto("pack_select(10, [11, 12], offset=13, limit=14, index=15)"),
-		(&Select{
-			Values: Tuple{PackInt(11), PackInt(12)},
-			Space:  10,
-			Offset: 13,
-			Limit:  14,
-			Index:  15,
-		}).Pack(0, 0),
+		v,
 	)
+
+	v, _ = (&Select{
+		Tuples: []Tuple{
+			Tuple{PackInt(11), PackInt(12)},
+			Tuple{PackInt(13), PackInt(14)},
+		},
+		Space: "1",
+	}).Pack(0, 0)
 
 	assert.Equal(
 		pythonIproto("pack_select(1, [[11, 12], [13, 14]])"),
-		(&Select{
-			Tuples: []Tuple{
-				Tuple{PackInt(11), PackInt(12)},
-				Tuple{PackInt(13), PackInt(14)},
-			},
-			Space: 1,
-		}).Pack(0, 0),
+		v,
 	)
 }
 
 func TestPackInsert(t *testing.T) {
 	assert := assert.New(t)
 
+	v, _ := (&Insert{
+		Tuple: Tuple{
+			PackInt(42),
+			PackInt(15),
+		},
+	}).Pack(0, 0)
+
 	assert.Equal(
 		pythonIproto("pack_insert(0, [42, 15])"),
-		(&Insert{
-			Tuple: Tuple{
-				PackInt(42),
-				PackInt(15),
-			},
-		}).Pack(0, 0),
+		v,
 	)
+
+	v, _ = (&Insert{
+		Space: "10",
+		Tuple: Tuple{
+			PackInt(11),
+			PackInt(12),
+		},
+		ReturnTuple: true,
+	}).Pack(0, 0)
 
 	assert.Equal(
 		pythonIproto("pack_insert(10, [11, 12], return_tuple=1)"),
-		(&Insert{
-			Space: 10,
-			Tuple: Tuple{
-				PackInt(11),
-				PackInt(12),
-			},
-			ReturnTuple: true,
-		}).Pack(0, 0),
+		v,
 	)
+}
+
+func BenchmarkPackSelect(b *testing.B) {
+	for i := 0; i < b.N; i += 1 {
+		request := &Select{
+			Values: Tuple{
+				Bytes("hello"),
+				PackInt(42),
+				PackInt(15),
+			},
+			Space:  "0",
+			Offset: 42,
+			Limit:  100,
+			Index:  0,
+		}
+		request.Pack(0, 0)
+	}
 }
