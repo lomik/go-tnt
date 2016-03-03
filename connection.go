@@ -49,9 +49,9 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 	}
 
 	if opts.DefaultSpace != "" {
-		i, err := strconv.Atoi(splittedAddr[1])
+		i, err := strconv.Atoi(opts.DefaultSpace)
 		if err != nil {
-			return nil, fmt.Errorf("Wrong space: %s", splittedAddr[1])
+			return nil, fmt.Errorf("Wrong space: %s", opts.DefaultSpace)
 		}
 		defaultSpace = uint32(i)
 	}
