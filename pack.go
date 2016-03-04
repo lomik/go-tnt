@@ -2,7 +2,7 @@ package tnt
 
 import (
 	"bytes"
-	"strconv"
+	"fmt"
 )
 
 var packedInt0 = PackInt(0)
@@ -115,6 +115,21 @@ func packTuple(value Tuple) []byte {
 	return buffer.Bytes()
 }
 
+func interfaceToUint32(t interface{}) (uint32, error) {
+	switch t := t.(type) {
+	default:
+		return 0, fmt.Errorf("unexpected type %T\n", t) // %T prints whatever type t has
+	case int:
+		return uint32(t), nil
+	case int64:
+		return uint32(t), nil
+	case uint:
+		return uint32(t), nil
+	case uint64:
+		return uint32(t), nil
+	}
+}
+
 func (q *Select) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
@@ -124,8 +139,8 @@ func (q *Select) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 		limit = 0xffffffff
 	}
 
-	if q.Space != "" {
-		i, err := strconv.Atoi(q.Space)
+	if q.Space != nil {
+		i, err := interfaceToUint32(q.Space)
 		if err != nil {
 			return nil, err
 		}
@@ -168,8 +183,8 @@ func (q *Insert) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
-	if q.Space != "" {
-		i, err := strconv.Atoi(q.Space)
+	if q.Space != nil {
+		i, err := interfaceToUint32(q.Space)
 		if err != nil {
 			return nil, err
 		}
@@ -198,8 +213,8 @@ func (q *Delete) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
 
-	if q.Space != "" {
-		i, err := strconv.Atoi(q.Space)
+	if q.Space != nil {
+		i, err := interfaceToUint32(q.Space)
 		if err != nil {
 			return nil, err
 		}

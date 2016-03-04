@@ -76,7 +76,7 @@ func TestCloseExecute(t *testing.T) {
 
 	data, err := conn.Execute(&Select{
 		Value: PackInt(1),
-		Space: "1",
+		Space: 1,
 	})
 
 	assert.Nil(data)
@@ -88,7 +88,7 @@ func TestCloseExecute(t *testing.T) {
 	// execute on closed connection
 	data, err = conn.Execute(&Select{
 		Value: PackInt(1),
-		Space: "1",
+		Space: 1,
 	})
 
 	assert.Nil(data)

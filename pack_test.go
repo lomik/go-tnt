@@ -217,7 +217,7 @@ func TestPackSelect(t *testing.T) {
 
 	v, _ = (&Select{
 		Values: Tuple{PackInt(11), PackInt(12)},
-		Space:  "10",
+		Space:  10,
 		Offset: 13,
 		Limit:  14,
 		Index:  15,
@@ -233,7 +233,7 @@ func TestPackSelect(t *testing.T) {
 			Tuple{PackInt(11), PackInt(12)},
 			Tuple{PackInt(13), PackInt(14)},
 		},
-		Space: "1",
+		Space: 1,
 	}).Pack(0, 0)
 
 	assert.Equal(
@@ -258,7 +258,7 @@ func TestPackInsert(t *testing.T) {
 	)
 
 	v, _ = (&Insert{
-		Space: "10",
+		Space: 10,
 		Tuple: Tuple{
 			PackInt(11),
 			PackInt(12),
@@ -280,7 +280,7 @@ func BenchmarkPackSelect(b *testing.B) {
 				PackInt(42),
 				PackInt(15),
 			},
-			Space:  "0",
+			Space:  0,
 			Offset: 42,
 			Limit:  100,
 			Index:  0,

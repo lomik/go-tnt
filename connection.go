@@ -32,8 +32,8 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 		opts.QueryTimeout = time.Duration(time.Second)
 	}
 
-	if opts.MemcacheSpace == "" {
-		opts.MemcacheSpace = "23"
+	if opts.MemcacheSpace == nil {
+		opts.MemcacheSpace = uint32(23)
 	}
 
 	var defaultSpace uint32
@@ -48,10 +48,10 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 		defaultSpace = uint32(i)
 	}
 
-	if opts.DefaultSpace != "" {
-		i, err := strconv.Atoi(opts.DefaultSpace)
+	if opts.DefaultSpace != nil {
+		i, err := interfaceToUint32(opts.DefaultSpace)
 		if err != nil {
-			return nil, fmt.Errorf("Wrong space: %s", opts.DefaultSpace)
+			return nil, fmt.Errorf("Wrong space: %#v", opts.DefaultSpace)
 		}
 		defaultSpace = uint32(i)
 	}

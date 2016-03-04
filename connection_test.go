@@ -23,7 +23,7 @@ func TestSelect(t *testing.T) {
 
 	data, err := conn.Execute(&Select{
 		Value: PackInt(0),
-		Space: "15",
+		Space: 15,
 	})
 	assert.Nil(data)
 	assert.Error(err)
@@ -127,7 +127,7 @@ func TestDefaultSpace2(t *testing.T) {
 	defer tearDown()
 
 	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d/24", primaryPort), &Options{
-		DefaultSpace: "48",
+		DefaultSpace: 48,
 	})
 	if !assert.NoError(err) {
 		return

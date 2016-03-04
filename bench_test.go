@@ -12,7 +12,7 @@ func BenchmarkSelectPack(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		query := &Select{
 			Values: Tuple{PackInt(11), PackInt(12)},
-			Space:  "10",
+			Space:  10,
 			Offset: 13,
 			Limit:  14,
 			Index:  15,
@@ -53,7 +53,7 @@ func BenchmarkSelect(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		conn.Execute(&Select{
 			Value: PackInt(0),
-			Space: "10",
+			Space: 10,
 		})
 	}
 }

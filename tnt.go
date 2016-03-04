@@ -40,7 +40,7 @@ type Select struct {
 	// This request is looking for serveral records using composite index
 	Tuples []Tuple
 
-	Space  string
+	Space  interface{}
 	Index  uint32
 	Limit  uint32 // 0x0 == 0xffffffff
 	Offset uint32
@@ -48,7 +48,7 @@ type Select struct {
 
 type Insert struct {
 	Tuple       Tuple
-	Space       string
+	Space       interface{}
 	ReturnTuple bool
 }
 
@@ -63,7 +63,7 @@ type Delete struct {
 	// Transform a list of scalar values to a list of tuples
 	Values []Bytes
 
-	Space       string
+	Space       interface{}
 	ReturnTuple bool
 
 	// Index  uint32
@@ -89,8 +89,8 @@ type Response struct {
 type Options struct {
 	ConnectTimeout time.Duration
 	QueryTimeout   time.Duration
-	MemcacheSpace  string
-	DefaultSpace   string
+	MemcacheSpace  interface{}
+	DefaultSpace   interface{}
 }
 
 type QueryOptions struct {
@@ -109,7 +109,7 @@ type Connection struct {
 	memcacheCas uint64
 	// options
 	queryTimeout  time.Duration
-	memcacheSpace string
+	memcacheSpace interface{}
 	defaultSpace  uint32
 }
 
