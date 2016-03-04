@@ -127,6 +127,10 @@ func interfaceToUint32(t interface{}) (uint32, error) {
 		return uint32(t), nil
 	case uint64:
 		return uint32(t), nil
+	case int32:
+		return uint32(t), nil
+	case uint32:
+		return uint32(t), nil
 	}
 }
 
