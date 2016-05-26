@@ -10,6 +10,14 @@ func UnpackInt(p []byte) uint32 {
 	return result
 }
 
+func UnpackLong(p []byte) uint64 {
+	result := uint64(0)
+	for i := uint(0); i < 8; i++ {
+		result |= uint64(p[i]) << (8 * i)
+	}
+	return result
+}
+
 func unpackIntBase128(p []byte) (uint32, int, error) {
 	length := len(p)
 	b := uint32(0)
