@@ -2,6 +2,7 @@ package tnt
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 )
 
@@ -40,6 +41,12 @@ func PackInt(value uint32) []byte {
 // PackLong is alias for PackQ
 func PackLong(value uint64) []byte {
 	return packLittle(uint(value), 8)
+}
+
+func PackDouble(value float64) []byte {
+	buffer := new(bytes.Buffer)
+	binary.Write(buffer, binary.LittleEndian, value)
+	return buffer.Bytes()
 }
 
 // PackIntBase128 is port from python pack_int_base128
