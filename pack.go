@@ -28,6 +28,9 @@ func packBig(value int, bytes int) []byte {
 	}
 	return result
 }
+func PackBig(value int, bytes int) []byte {
+	return packBig(value, bytes)
+}
 
 func PackB(value uint8) []byte {
 	return []byte{value}
