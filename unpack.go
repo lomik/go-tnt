@@ -1,6 +1,10 @@
 package tnt
 
-import "errors"
+import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+)
 
 func UnpackInt(p []byte) uint32 {
 	result := uint32(0)
@@ -16,6 +20,13 @@ func UnpackLong(p []byte) uint64 {
 		result |= uint64(p[i]) << (8 * i)
 	}
 	return result
+}
+
+func UnpackDouble(p []byte) float64 {
+	var res float64
+	buf := bytes.NewReader(p)
+	binary.Read(buf, binary.LittleEndian, &res)
+	return res
 }
 
 func unpackIntBase128(p []byte) (uint32, int, error) {
