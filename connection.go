@@ -1,6 +1,7 @@
 package tnt
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"math"
@@ -227,6 +228,9 @@ ROUTER_LOOP:
 
 func writer(tcpConn net.Conn, writeChan chan *request, stopChan chan bool) {
 	var err error
+	var n int
+	w := bufio.NewWriter(tcpConn)
+
 WRITER_LOOP:
 	for {
 		select {
@@ -234,13 +238,31 @@ WRITER_LOOP:
 			if !ok {
 				break WRITER_LOOP
 			}
-			_, err = tcpConn.Write(request.raw)
+			n, err = w.Write(request.raw)
 			// @TODO: handle error
-			if err != nil {
+			if err != nil || n != len(request.raw) {
 				break WRITER_LOOP
 			}
 		case <-stopChan:
 			break WRITER_LOOP
+		default:
+			if err = w.Flush(); err != nil {
+				break WRITER_LOOP
+			}
+
+			// same without flush
+			select {
+			case request, ok := <-writeChan:
+				if !ok {
+					break WRITER_LOOP
+				}
+				n, err = w.Write(request.raw)
+				if err != nil || n != len(request.raw) {
+					break WRITER_LOOP
+				}
+			case <-stopChan:
+				break WRITER_LOOP
+			}
 		}
 	}
 	if err != nil {
@@ -260,10 +282,11 @@ func reader(tcpConn net.Conn, readChan chan *Response) {
 	var response *Response
 
 	var err error
+	r := bufio.NewReaderSize(tcpConn, 128*1024)
 
 READER_LOOP:
 	for {
-		_, err = io.ReadAtLeast(tcpConn, header, headerLen)
+		_, err = io.ReadAtLeast(r, header, headerLen)
 		// @TODO: log error
 		if err != nil {
 			break READER_LOOP
@@ -274,7 +297,7 @@ READER_LOOP:
 
 		body := make([]byte, bodyLen)
 
-		_, err = io.ReadAtLeast(tcpConn, body, int(bodyLen))
+		_, err = io.ReadAtLeast(r, body, int(bodyLen))
 		// @TODO: log error
 		if err != nil {
 			break READER_LOOP
