@@ -100,7 +100,7 @@ type QueryOptions struct {
 type Connection struct {
 	addr        string
 	requestID   uint32
-	requests    map[uint32]*request
+	requests    *requestMap
 	requestChan chan *request
 	closeOnce   sync.Once
 	exit        chan bool

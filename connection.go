@@ -15,7 +15,7 @@ import (
 func Connect(addr string, opts *Options) (connection *Connection, err error) {
 	connection = &Connection{
 		addr:        addr,
-		requests:    make(map[uint32]*request),
+		requests:    newRequestMap(),
 		requestChan: make(chan *request, 1024),
 		exit:        make(chan bool),
 		closed:      make(chan bool),
@@ -79,14 +79,6 @@ func (conn *Connection) newRequest(r *request) error {
 	var err error
 
 	requestID := conn.nextID()
-	old, exists := conn.requests[requestID]
-	if exists {
-		old.replyChan <- &Response{
-			Error: NewConnectionError("Shred old requests"), // wtf?
-		}
-		close(old.replyChan)
-		delete(conn.requests, requestID)
-	}
 
 	r.raw, err = r.query.Pack(requestID, conn.defaultSpace)
 	if err != nil {
@@ -98,7 +90,13 @@ func (conn *Connection) newRequest(r *request) error {
 		return err
 	}
 
-	conn.requests[requestID] = r
+	old := conn.requests.Put(requestID, r)
+	if old != nil {
+		old.replyChan <- &Response{
+			Error: NewConnectionError("Shred old requests"), // wtf?
+		}
+		close(old.replyChan)
+	}
 	return nil
 }
 
@@ -129,13 +127,12 @@ func (conn *Connection) worker(tcpConn net.Conn) {
 	wg.Wait()
 
 	// send error reply to all pending requests
-	for requestID, req := range conn.requests {
+	conn.requests.CleanUp(func(req *request) {
 		req.replyChan <- &Response{
 			Error: ConnectionClosedError(),
 		}
 		close(req.replyChan)
-		delete(conn.requests, requestID)
-	}
+	})
 
 	var req *request
 
@@ -211,6 +208,7 @@ func (conn *Connection) reader(tcpConn net.Conn) {
 	var bodyLen uint32
 	var requestID uint32
 	var response *Response
+	var req *request
 
 	var err error
 	r := bufio.NewReaderSize(tcpConn, 128*1024)
@@ -241,11 +239,10 @@ READER_LOOP:
 		}
 		response.requestID = requestID
 
-		request, exists := conn.requests[response.requestID]
-		if exists {
-			request.replyChan <- response
-			close(request.replyChan)
-			delete(conn.requests, response.requestID)
+		req = conn.requests.Pop(response.requestID)
+		if req != nil {
+			req.replyChan <- response
+			close(req.replyChan)
 		}
 	}
 }
