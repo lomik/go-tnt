@@ -118,6 +118,10 @@ func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tu
 		query:     q,
 		replyChan: make(chan *Response, 1),
 	}
+	err = conn.newRequest(request)
+	if err != nil {
+		return
+	}
 
 	// make options
 	if opts == nil {

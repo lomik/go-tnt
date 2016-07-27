@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -16,7 +16,7 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 	connection = &Connection{
 		addr:        addr,
 		requests:    make(map[uint32]*request),
-		requestChan: make(chan *request, 16),
+		requestChan: make(chan *request, 1024),
 		exit:        make(chan bool),
 		closed:      make(chan bool),
 	}
@@ -72,11 +72,7 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 }
 
 func (conn *Connection) nextID() uint32 {
-	if conn.requestID == math.MaxUint32 {
-		conn.requestID = 0
-	}
-	conn.requestID++
-	return conn.requestID
+	return atomic.AddUint32(&conn.requestID, 1)
 }
 
 func (conn *Connection) newRequest(r *request) error {
@@ -106,15 +102,6 @@ func (conn *Connection) newRequest(r *request) error {
 	return nil
 }
 
-func (conn *Connection) handleReply(res *Response) {
-	request, exists := conn.requests[res.requestID]
-	if exists {
-		request.replyChan <- res
-		close(request.replyChan)
-		delete(conn.requests, res.requestID)
-	}
-}
-
 func (conn *Connection) stop() {
 	conn.closeOnce.Do(func() {
 		// debug.PrintStack()
@@ -124,33 +111,19 @@ func (conn *Connection) stop() {
 }
 
 func (conn *Connection) worker(tcpConn net.Conn) {
-
 	var wg sync.WaitGroup
-
-	readChan := make(chan *Response, 256)
-	writeChan := make(chan *request, 256)
-
-	wg.Add(3)
+	wg.Add(2)
 
 	go func() {
-		conn.router(readChan, writeChan, conn.exit)
+		writer(tcpConn, conn.requestChan, conn.exit)
 		conn.stop()
 		wg.Done()
-		// pp.Println("router")
 	}()
 
 	go func() {
-		writer(tcpConn, writeChan, conn.exit)
+		conn.reader(tcpConn)
 		conn.stop()
 		wg.Done()
-		// pp.Println("writer")
-	}()
-
-	go func() {
-		reader(tcpConn, readChan)
-		conn.stop()
-		wg.Done()
-		// pp.Println("reader")
 	}()
 
 	wg.Wait()
@@ -182,48 +155,6 @@ FETCH_INPUT:
 	}
 
 	close(conn.closed)
-}
-
-func (conn *Connection) router(readChan chan *Response, writeChan chan *request, stopChan chan bool) {
-	// close(readChan) for stop router
-	var err error
-	requestChan := conn.requestChan
-
-	readChanThreshold := cap(readChan) / 10
-
-ROUTER_LOOP:
-	for {
-		// force read reply
-		if len(readChan) > readChanThreshold {
-			requestChan = nil
-		} else {
-			requestChan = conn.requestChan
-		}
-
-		select {
-		case r, ok := <-requestChan:
-			if !ok {
-				break ROUTER_LOOP
-			}
-
-			err = conn.newRequest(r)
-			if err == nil {
-				select {
-				case writeChan <- r:
-					// pass
-				case <-stopChan:
-					break ROUTER_LOOP
-				}
-			}
-		case <-stopChan:
-			break ROUTER_LOOP
-		case res, ok := <-readChan:
-			if !ok {
-				break ROUTER_LOOP
-			}
-			conn.handleReply(res)
-		}
-	}
 }
 
 func writer(tcpConn net.Conn, writeChan chan *request, stopChan chan bool) {
@@ -271,7 +202,7 @@ WRITER_LOOP:
 	}
 }
 
-func reader(tcpConn net.Conn, readChan chan *Response) {
+func (conn *Connection) reader(tcpConn net.Conn) {
 	// var msgLen uint32
 	// var err error
 	header := make([]byte, 12)
@@ -310,6 +241,11 @@ READER_LOOP:
 		}
 		response.requestID = requestID
 
-		readChan <- response
+		request, exists := conn.requests[response.requestID]
+		if exists {
+			request.replyChan <- response
+			close(request.replyChan)
+			delete(conn.requests, response.requestID)
+		}
 	}
 }
