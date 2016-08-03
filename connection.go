@@ -134,23 +134,6 @@ func (conn *Connection) worker(tcpConn net.Conn) {
 		close(req.replyChan)
 	})
 
-	var req *request
-
-FETCH_INPUT:
-	// and to all requests in input queue
-	for {
-		select {
-		case req = <-conn.requestChan:
-			// pass
-		default: // all fetched
-			break FETCH_INPUT
-		}
-		req.replyChan <- &Response{
-			Error: ConnectionClosedError(),
-		}
-		close(req.replyChan)
-	}
-
 	close(conn.closed)
 }
 
