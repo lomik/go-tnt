@@ -18,6 +18,9 @@ func packLittle(value uint, bytes int) []byte {
 	}
 	return result
 }
+func PackLittle(value uint, bytes int) []byte {
+	return packLittle(value, bytes)
+}
 
 func packBig(value int, bytes int) []byte {
 	b := value
