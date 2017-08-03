@@ -2,10 +2,16 @@ package tnt
 
 import "errors"
 
-type Error interface {
-	error
-	Connection() bool // Is the error temporary?
-}
+var (
+	// ErrRequestTimeout means timeout while sending request.
+	ErrRequestTimeout = NewConnectionError("Request send timeout")
+	// ErrResponseTimeout means timeout while request waiting.
+	ErrResponseTimeout = NewConnectionError("Response read timeout")
+	// ErrConnectionClosed means connection have been closed already.
+	ErrConnectionClosed = NewConnectionError("Connection closed")
+	// ErrShredOldRequests means request ID error.
+	ErrShredOldRequests = NewConnectionError("Shred old requests")
+)
 
 type ConnectionError struct {
 	error
@@ -15,29 +21,14 @@ type QueryError struct {
 	error
 }
 
-var _ Error = (*ConnectionError)(nil)
-var _ Error = (*QueryError)(nil)
-
 func NewConnectionError(message string) error {
 	return &ConnectionError{
 		error: errors.New(message),
 	}
 }
 
-func ConnectionClosedError() error {
-	return NewConnectionError("Connection closed")
-}
-
-func (e *ConnectionError) Connection() bool {
-	return true
-}
-
 func NewQueryError(message string) error {
 	return &QueryError{
 		error: errors.New(message),
 	}
-}
-
-func (e *QueryError) Connection() bool {
-	return false
 }

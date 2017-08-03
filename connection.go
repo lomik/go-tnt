@@ -93,7 +93,7 @@ func (conn *Connection) newRequest(r *request) error {
 	old := conn.requests.Put(requestID, r)
 	if old != nil {
 		old.replyChan <- &Response{
-			Error: NewConnectionError("Shred old requests"), // wtf?
+			Error: ErrShredOldRequests, // wtf?
 		}
 		close(old.replyChan)
 	}
@@ -129,7 +129,7 @@ func (conn *Connection) worker(tcpConn net.Conn) {
 	// send error reply to all pending requests
 	conn.requests.CleanUp(func(req *request) {
 		req.replyChan <- &Response{
-			Error: ConnectionClosedError(),
+			Error: ErrConnectionClosed,
 		}
 		close(req.replyChan)
 	})

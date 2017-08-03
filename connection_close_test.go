@@ -81,7 +81,7 @@ func TestCloseExecute(t *testing.T) {
 
 	assert.Nil(data)
 	assert.Error(err)
-	assert.True(err.(Error).Connection())
+	assert.IsType(&ConnectionError{}, err)
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -93,5 +93,5 @@ func TestCloseExecute(t *testing.T) {
 
 	assert.Nil(data)
 	assert.Error(err)
-	assert.True(err.(Error).Connection())
+	assert.IsType(&ConnectionError{}, err)
 }

@@ -123,40 +123,34 @@ func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tu
 		return
 	}
 
-	// make options
-	if opts == nil {
-		opts = &QueryOptions{}
-	}
-
-	if opts.Timeout.Nanoseconds() == 0 {
-		opts.Timeout = conn.queryTimeout
+	var timeout time.Duration
+	if opts != nil && opts.Timeout > 0 {
+		timeout = opts.Timeout
+	} else {
+		timeout = conn.queryTimeout
 	}
 
 	// set execute deadline
-	deadline := time.After(opts.Timeout)
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
 
 	select {
 	case conn.requestChan <- request:
 		// pass
-	case <-deadline:
-		return nil, NewConnectionError("Request send timeout")
+	case <-deadline.C:
+		return nil, ErrRequestTimeout
 	case <-conn.exit:
-		return nil, ConnectionClosedError()
+		return nil, ErrConnectionClosed
 	}
 
-	var response *Response
 	select {
-	case response = <-request.replyChan:
-		// pass
-	case <-deadline:
-		return nil, NewConnectionError("Response read timeout")
+	case response := <-request.replyChan:
+		return response.Data, response.Error
+	case <-deadline.C:
+		return nil, ErrResponseTimeout
 	case <-conn.exit:
-		return nil, ConnectionClosedError()
+		return nil, ErrConnectionClosed
 	}
-
-	result = response.Data
-	err = response.Error
-	return
 }
 
 func (conn *Connection) Execute(q Query) (result []Tuple, err error) {
