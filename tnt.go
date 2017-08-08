@@ -81,9 +81,8 @@ var _ Query = (*Delete)(nil)
 var _ Query = (*Call)(nil)
 
 type Response struct {
-	Data      []Tuple
-	Error     error
-	requestID uint32
+	Data  []Tuple
+	Error error
 }
 
 type Options struct {
@@ -114,13 +113,16 @@ type Connection struct {
 }
 
 func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tuple, err error) {
-	request := &request{
-		query:     q,
-		replyChan: make(chan *Response, 1),
-	}
-	err = conn.newRequest(request)
+
+	reqID, request, err := conn.newRequest(q)
 	if err != nil {
 		return
+	}
+
+	if old := conn.requests.Put(reqID, request); old != nil {
+		// ouroboros has happened
+		old.replyChan <- &Response{Error: ErrShredOldRequests}
+		close(old.replyChan)
 	}
 
 	var timeout time.Duration
@@ -138,6 +140,8 @@ func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tu
 	case conn.requestChan <- request:
 		// pass
 	case <-deadline.C:
+		// delete request from map to avoid leakage
+		conn.requests.Pop(reqID)
 		return nil, ErrRequestTimeout
 	case <-conn.exit:
 		return nil, ErrConnectionClosed

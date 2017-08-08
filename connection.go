@@ -75,29 +75,17 @@ func (conn *Connection) nextID() uint32 {
 	return atomic.AddUint32(&conn.requestID, 1)
 }
 
-func (conn *Connection) newRequest(r *request) error {
-	var err error
+func (conn *Connection) newRequest(q Query) (reqID uint32, r *request, err error) {
 
-	requestID := conn.nextID()
+	r = &request{query: q, replyChan: make(chan *Response, 1)}
+	reqID = conn.nextID()
 
-	r.raw, err = r.query.Pack(requestID, conn.defaultSpace)
+	r.raw, err = r.query.Pack(reqID, conn.defaultSpace)
 	if err != nil {
-		r.replyChan <- &Response{
-			Error: &QueryError{
-				error: err,
-			},
-		}
-		return err
+		return 0, nil, &QueryError{error: err}
 	}
 
-	old := conn.requests.Put(requestID, r)
-	if old != nil {
-		old.replyChan <- &Response{
-			Error: ErrShredOldRequests, // wtf?
-		}
-		close(old.replyChan)
-	}
-	return nil
+	return reqID, r, nil
 }
 
 func (conn *Connection) stop() {
@@ -220,9 +208,8 @@ READER_LOOP:
 		if err != nil {
 			break READER_LOOP
 		}
-		response.requestID = requestID
 
-		req = conn.requests.Pop(response.requestID)
+		req = conn.requests.Pop(requestID)
 		if req != nil {
 			req.replyChan <- response
 			close(req.replyChan)
