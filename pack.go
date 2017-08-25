@@ -18,6 +18,7 @@ func packLittle(value uint, bytes int) []byte {
 	}
 	return result
 }
+
 func PackLittle(value uint, bytes int) []byte {
 	return packLittle(value, bytes)
 }
@@ -31,6 +32,7 @@ func packBig(value int, bytes int) []byte {
 	}
 	return result
 }
+
 func PackBig(value int, bytes int) []byte {
 	return packBig(value, bytes)
 }
@@ -53,6 +55,21 @@ func PackDouble(value float64) []byte {
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.LittleEndian, value)
 	return buffer.Bytes()
+}
+
+func base128len(length int) int {
+	switch {
+	case length < (1 << 7):
+		return 1 + length
+	case length < (1 << 14):
+		return 2 + length
+	case length < (1 << 21):
+		return 3 + length
+	case length < (1 << 28):
+		return 4 + length
+	default:
+		return 5 + length
+	}
 }
 
 // PackIntBase128 is port from python pack_int_base128
@@ -101,7 +118,7 @@ func packFieldStr(value []byte) []byte {
 
 	var buffer bytes.Buffer
 	buffer.Write(valueLenPacked)
-	buffer.Write([]byte(value))
+	buffer.Write(value)
 
 	return buffer.Bytes()
 }
@@ -143,13 +160,18 @@ func interfaceToUint32(t interface{}) (uint32, error) {
 	case int32:
 		return uint32(t), nil
 	case uint32:
-		return uint32(t), nil
+		return t, nil
 	}
 }
 
 func (q *Select) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
-	var bodyBuffer bytes.Buffer
-	var buffer bytes.Buffer
+	length := q.ByteLength()
+
+	buf := NewFixedBuffer(length + 12)
+
+	buf.WriteUint32(requestTypeSelect)
+	buf.WriteUint32(uint32(length))
+	buf.WriteUint32(requestID)
 
 	limit := q.Limit
 	if limit == 0 {
@@ -161,39 +183,49 @@ func (q *Select) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		bodyBuffer.Write(PackInt(uint32(i)))
+		buf.WriteUint32(i)
 	} else {
-		bodyBuffer.Write(PackInt(defaultSpace))
+		buf.WriteUint32(defaultSpace)
 	}
-	bodyBuffer.Write(PackInt(q.Index))
-	bodyBuffer.Write(PackInt(q.Offset))
-	bodyBuffer.Write(PackInt(limit))
 
-	if q.Value != nil {
-		bodyBuffer.Write(PackInt(1))
-		bodyBuffer.Write(packTuple(Tuple{q.Value}))
-	} else if q.Values != nil {
+	buf.WriteUint32(q.Index)
+	buf.WriteUint32(q.Offset)
+	buf.WriteUint32(limit)
+
+	switch {
+	case q.Value != nil:
+		buf.WriteUint32(1) // count
+		buf.WriteUint32(1) // fields
+		vlp := PackIntBase128(uint32(len(q.Value)))
+		buf.Write(vlp)
+		buf.Write(q.Value)
+	case q.Values != nil:
 		cnt := len(q.Values)
-		bodyBuffer.Write(PackInt(uint32(cnt)))
+		buf.WriteUint32(uint32(cnt))
 		for i := 0; i < cnt; i++ {
-			bodyBuffer.Write(packTuple(Tuple{q.Values[i]}))
+			buf.WriteUint32(1) // fields
+			vlp := PackIntBase128(uint32(len(q.Values[i])))
+			buf.Write(vlp)
+			buf.Write(q.Values[i])
 		}
-	} else if q.Tuples != nil {
+	case q.Tuples != nil:
 		cnt := len(q.Tuples)
-		bodyBuffer.Write(PackInt(uint32(cnt)))
+		buf.WriteUint32(uint32(cnt))
 		for i := 0; i < cnt; i++ {
-			bodyBuffer.Write(packTuple(q.Tuples[i]))
+			tuple := q.Tuples[i]
+			fields := len(tuple)
+			buf.WriteUint32(uint32(fields))
+			for j := 0; j < fields; j++ {
+				vlp := PackIntBase128(uint32(len(tuple[j])))
+				buf.Write(vlp)
+				buf.Write(tuple[j])
+			}
 		}
-	} else {
-		bodyBuffer.Write(packedInt0)
+	default:
+		buf.WriteUint32(0) // count
 	}
 
-	buffer.Write(PackInt(requestTypeSelect))
-	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
-	buffer.Write(PackInt(requestID))
-	buffer.Write(bodyBuffer.Bytes())
-
-	return buffer.Bytes(), nil
+	return buf.Bytes(), nil
 }
 
 func (q *Insert) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
@@ -205,7 +237,7 @@ func (q *Insert) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		bodyBuffer.Write(PackInt(uint32(i)))
+		bodyBuffer.Write(PackInt(i))
 	} else {
 		bodyBuffer.Write(PackInt(defaultSpace))
 	}
@@ -235,7 +267,7 @@ func (q *Delete) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		bodyBuffer.Write(PackInt(uint32(i)))
+		bodyBuffer.Write(PackInt(i))
 	} else {
 		bodyBuffer.Write(PackInt(defaultSpace))
 	}

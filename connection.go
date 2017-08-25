@@ -26,11 +26,11 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 	}
 
 	if opts.ConnectTimeout.Nanoseconds() == 0 {
-		opts.ConnectTimeout = time.Duration(time.Second)
+		opts.ConnectTimeout = time.Second
 	}
 
 	if opts.QueryTimeout.Nanoseconds() == 0 {
-		opts.QueryTimeout = time.Duration(time.Second)
+		opts.QueryTimeout = time.Second
 	}
 
 	if opts.MemcacheSpace == nil {
@@ -54,7 +54,7 @@ func Connect(addr string, opts *Options) (connection *Connection, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("Wrong space: %#v", opts.DefaultSpace)
 		}
-		defaultSpace = uint32(i)
+		defaultSpace = i
 	}
 
 	connection.memcacheSpace = opts.MemcacheSpace

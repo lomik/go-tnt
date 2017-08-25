@@ -9,11 +9,13 @@ import (
 type Bytes []byte
 type Tuple []Bytes
 
-const requestTypeCall = 22
-const requestTypeDelete = 21
-const requestTypeInsert = 13
-const requestTypeSelect = 17
-const requestTypeUpdate = 19
+const (
+	requestTypeInsert = 13
+	requestTypeSelect = 17
+	requestTypeUpdate = 19
+	requestTypeDelete = 21
+	requestTypeCall   = 22
+)
 
 type Query interface {
 	Pack(requestID uint32, defaultSpace uint32) ([]byte, error)
@@ -26,24 +28,49 @@ type request struct {
 }
 
 type Select struct {
-	// Scalar
-	// This request is looking for one single record
+	// Value is a Scalar.
+	// Request with Value is looking for one single record.
 	Value Bytes
 
-	// List of scalars
-	// This request is looking for several records using single-valued index
+	// Values is a List of scalars.
+	// Request with Values is looking for several records using single-valued index.
 	// Ex: select(space_no, index_no, [1, 2, 3])
-	// Transform a list of scalar values to a list of tuples
+	// Transform a list of scalar values to a list of tuples.
 	Values []Bytes
 
-	// List of tuples
-	// This request is looking for serveral records using composite index
+	// Tuples is a List of tuples.
+	// Request with Tuples is looking for serveral records using composite index
 	Tuples []Tuple
 
-	Space  interface{}
-	Index  uint32
-	Limit  uint32 // 0x0 == 0xffffffff
+	Space interface{}
+	Index uint32
+	// Limit selected records.
+	// Limit equal to 0x0 means 0xffffffff
+	Limit  uint32
 	Offset uint32
+}
+
+func (q *Select) ByteLength() (length int) {
+	length = 20
+	switch {
+	case q.Value != nil:
+		length += 4 + base128len(len(q.Value))
+	case q.Values != nil:
+		cnt := len(q.Values)
+		for i := 0; i < cnt; i++ {
+			length += 4 + base128len(len(q.Values[i]))
+		}
+	case q.Tuples != nil:
+		cnt := len(q.Tuples)
+		for i := 0; i < cnt; i++ {
+			fields := len(q.Tuples[i])
+			length += 4
+			for j := 0; j < fields; j++ {
+				length += base128len(len(q.Tuples[i][j]))
+			}
+		}
+	}
+	return
 }
 
 type Insert struct {
