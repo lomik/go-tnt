@@ -1,1 +1,1 @@
-Go-библиотека к тарантулу 1.5
+Tarantool 1.5 connector
