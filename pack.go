@@ -258,6 +258,49 @@ func (q *Insert) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 
 }
 
+func (q *Update) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
+	var bodyBuffer bytes.Buffer
+	var buffer bytes.Buffer
+
+	if q.Space != nil {
+		space, err := interfaceToUint32(q.Space)
+		if err != nil {
+			return nil, err
+		}
+		bodyBuffer.Write(PackInt(space))
+	} else {
+		bodyBuffer.Write(PackInt(defaultSpace))
+	}
+
+	if q.ReturnTuple {
+		bodyBuffer.Write(packedInt1)
+	} else {
+		bodyBuffer.Write(packedInt0)
+	}
+
+	bodyBuffer.Write(packTuple(q.Tuple))
+
+	if len(q.Ops) != 0 {
+		cnt := len(q.Ops)
+		bodyBuffer.Write(PackInt(uint32(cnt)))
+		for i := 0; i < cnt; i++ {
+			op := q.Ops[i]
+			bodyBuffer.Write(PackInt(op.Field))
+			bodyBuffer.Write(PackB(byte(op.OpCode)))
+			bodyBuffer.Write(packFieldStr(op.Value))
+		}
+	}
+
+	var buf bytes.Buffer
+
+	buffer.Write(PackInt(requestTypeUpdate))
+	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
+	buffer.Write(PackInt(requestID))
+	buffer.Write(bodyBuffer.Bytes())
+
+	return buf.Bytes(), nil
+}
+
 func (q *Delete) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 	var bodyBuffer bytes.Buffer
 	var buffer bytes.Buffer
@@ -293,7 +336,6 @@ func (q *Delete) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 	buffer.Write(bodyBuffer.Bytes())
 
 	return buffer.Bytes(), nil
-
 }
 
 func (q *Call) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {

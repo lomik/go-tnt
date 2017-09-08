@@ -79,6 +79,44 @@ type Insert struct {
 	ReturnTuple bool
 }
 
+type OpCode uint8
+
+const (
+	opSet    OpCode = iota
+	opAdd
+	opAnd
+	opXor
+	opOr
+	opSplice
+	opDelete
+	opInsert
+)
+
+func OpSet(field uint32, value Bytes) Operator {
+	return Operator{field, opSet,value}
+}
+
+func OpDelete(field uint32, value Bytes) Operator {
+	return Operator{field, opDelete,value}
+}
+
+func OpInsert(field uint32, value Bytes) Operator {
+	return Operator{field, opInsert,value}
+}
+
+type Operator struct {
+	Field  uint32
+	OpCode OpCode
+	Value  Bytes
+}
+
+type Update struct {
+	Tuple       Tuple
+	Space       interface{}
+	Ops         []Operator
+	ReturnTuple bool
+}
+
 type Delete struct {
 	// Scalar
 	// This request is looking for one single record
@@ -104,6 +142,7 @@ type Call struct {
 
 var _ Query = (*Select)(nil)
 var _ Query = (*Insert)(nil)
+var _ Query = (*Update)(nil)
 var _ Query = (*Delete)(nil)
 var _ Query = (*Call)(nil)
 
