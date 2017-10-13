@@ -321,14 +321,7 @@ func (q *Delete) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
 		bodyBuffer.Write(packedInt0)
 	}
 
-	if q.Value != nil {
-		bodyBuffer.Write(packTuple(Tuple{q.Value}))
-	} else if q.Values != nil {
-		cnt := len(q.Values)
-		for i := 0; i < cnt; i++ {
-			bodyBuffer.Write(packTuple(Tuple{q.Values[i]}))
-		}
-	}
+	bodyBuffer.Write(packTuple(q.Tuple))
 
 	buffer.Write(PackInt(requestTypeDelete))
 	buffer.Write(PackInt(uint32(bodyBuffer.Len())))

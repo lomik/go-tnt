@@ -82,7 +82,7 @@ type Insert struct {
 type OpCode uint8
 
 const (
-	opSet    OpCode = iota
+	opSet OpCode = iota
 	opAdd
 	opAnd
 	opXor
@@ -93,15 +93,15 @@ const (
 )
 
 func OpSet(field uint32, value Bytes) Operator {
-	return Operator{field, opSet,value}
+	return Operator{field, opSet, value}
 }
 
 func OpDelete(field uint32, value Bytes) Operator {
-	return Operator{field, opDelete,value}
+	return Operator{field, opDelete, value}
 }
 
 func OpInsert(field uint32, value Bytes) Operator {
-	return Operator{field, opInsert,value}
+	return Operator{field, opInsert, value}
 }
 
 type Operator struct {
@@ -118,20 +118,10 @@ type Update struct {
 }
 
 type Delete struct {
-	// Scalar
-	// This request is looking for one single record
-	Value Bytes
-
-	// List of scalars
-	// This request is looking for several records using single-valued index
-	// Ex: select(space_no, index_no, [1, 2, 3])
-	// Transform a list of scalar values to a list of tuples
-	Values []Bytes
+	Tuple Tuple
 
 	Space       interface{}
 	ReturnTuple bool
-
-	// Index  uint32
 }
 
 type Call struct {
