@@ -61,7 +61,9 @@ func (conn *Connection) MemSet(key string, value []byte, expires uint32) error {
 func (conn *Connection) MemDelete(key string) error {
 	_, err := conn.Execute(&Delete{
 		Space: conn.memcacheSpace,
-		Value: Bytes(key),
+		Tuple: Tuple{
+			[]byte(key),
+		},
 	})
 
 	return err
