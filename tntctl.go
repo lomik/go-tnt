@@ -68,7 +68,7 @@ START_LOOP:
 		too_long_threshold = 0.025
 
 		primary_port = {port}
-		memcached_expire = true
+		memcached_expire = false
         `
 
 		tarantoolConf = strings.Replace(tarantoolConf, "{port}", fmt.Sprintf("%d", port), -1)
