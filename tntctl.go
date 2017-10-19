@@ -47,7 +47,7 @@ func New(config string, options *Options) (*Box, error) {
 	var box *Box
 
 START_LOOP:
-	for port := options.PortMin; port <= options.PortMax; port++ {
+	for port := options.PortMin; port <= options.PortMax; port += 2 {
 
 		tmpDir, err := ioutil.TempDir("", "") //os.RemoveAll(tmpDir);
 		if err != nil {
@@ -67,11 +67,13 @@ START_LOOP:
 		rows_per_wal = 1000000
 		too_long_threshold = 0.025
 
-		primary_port = {port}
+		primary_port = {port1}
 		memcached_expire = false
+		memcached_port = {port2}
         `
 
-		tarantoolConf = strings.Replace(tarantoolConf, "{port}", fmt.Sprintf("%d", port), -1)
+		tarantoolConf = strings.Replace(tarantoolConf, "{port1}", fmt.Sprintf("%d", port), -1)
+		tarantoolConf = strings.Replace(tarantoolConf, "{port2}", fmt.Sprintf("%d", port+1), -1)
 		tarantoolConf = strings.Replace(tarantoolConf, "{root}", tmpDir, -1)
 
 		tarantoolConf = fmt.Sprintf("%s\n%s", tarantoolConf, config)
