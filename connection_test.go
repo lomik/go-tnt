@@ -11,8 +11,10 @@ import (
 func TestSelect(t *testing.T) {
 	assert := assert.New(t)
 
-	primaryPort, tearDown, err := setUp()
-	assert.NoError(err)
+	primaryPort, tearDown := setUp(t)
+	if t.Skipped() {
+		return
+	}
 	defer tearDown()
 
 	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
@@ -33,8 +35,10 @@ func TestSelect(t *testing.T) {
 func TestInsert(t *testing.T) {
 	assert := assert.New(t)
 
-	primaryPort, tearDown, err := setUp()
-	assert.NoError(err)
+	primaryPort, tearDown := setUp(t)
+	if t.Skipped() {
+		return
+	}
 	defer tearDown()
 
 	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
@@ -53,6 +57,7 @@ func TestInsert(t *testing.T) {
 			PackInt(value1),
 			PackInt(value3),
 		},
+		Space: 1,
 	})
 
 	conn.Execute(&Insert{
@@ -60,6 +65,7 @@ func TestInsert(t *testing.T) {
 			PackInt(value1),
 			PackInt(value4),
 		},
+		Space: 1,
 	})
 
 	conn.Execute(&Insert{
@@ -67,12 +73,14 @@ func TestInsert(t *testing.T) {
 			PackInt(value2),
 			PackInt(value4),
 		},
+		Space: 1,
 	})
 
 	// select 1
 
 	data, err := conn.Execute(&Select{
 		Value: PackInt(value1),
+		Space: 1,
 	})
 
 	assert.NoError(err)
@@ -89,6 +97,7 @@ func TestInsert(t *testing.T) {
 	// select 2
 	data, err = conn.Execute(&Select{
 		Value: PackInt(value4),
+		Space: 1,
 		Index: 1,
 	})
 
@@ -101,8 +110,42 @@ func TestInsert(t *testing.T) {
 func TestDefaultSpace(t *testing.T) {
 	assert := assert.New(t)
 
-	primaryPort, tearDown, err := setUp()
+	primaryPort, tearDown := setUp(t)
+	if t.Skipped() {
+		return
+	}
+	defer tearDown()
+
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d/1", primaryPort), nil)
+	if !assert.NoError(err) {
+		return
+	}
+	defer conn.Close()
+
+	value1 := uint32(rand.Int31())
+	value2 := uint32(rand.Int31())
+
+	conn.Execute(&Insert{
+		Tuple: Tuple{
+			PackInt(value1),
+			PackInt(value2),
+		},
+	})
+
+	data, err := conn.Execute(&Select{
+		Value: PackInt(value1),
+	})
 	assert.NoError(err)
+	assert.Equal(1, len(data))
+}
+
+func TestDefaultSpace2(t *testing.T) {
+	assert := assert.New(t)
+
+	primaryPort, tearDown := setUp(t)
+	if t.Skipped() {
+		return
+	}
 	defer tearDown()
 
 	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d/24", primaryPort), nil)
@@ -119,11 +162,13 @@ func TestDefaultSpace(t *testing.T) {
 	assert.Equal("Space 24 does not exist", err.Error())
 }
 
-func TestDefaultSpace2(t *testing.T) {
+func TestDefaultSpace3(t *testing.T) {
 	assert := assert.New(t)
 
-	primaryPort, tearDown, err := setUp()
-	assert.NoError(err)
+	primaryPort, tearDown := setUp(t)
+	if t.Skipped() {
+		return
+	}
 	defer tearDown()
 
 	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d/24", primaryPort), &Options{
@@ -140,4 +185,30 @@ func TestDefaultSpace2(t *testing.T) {
 	assert.Nil(data)
 	assert.Error(err)
 	assert.Equal("Space 48 does not exist", err.Error())
+}
+
+func BenchmarkSelect(b *testing.B) {
+	primaryPort, tearDown := setUp(b)
+	if b.Skipped() {
+		return
+	}
+	defer tearDown()
+
+	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer conn.Close()
+
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		_, err := conn.Execute(&Select{
+			Value: PackInt(0),
+			Space: 10,
+		})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
