@@ -76,16 +76,23 @@ func (conn *Connection) nextID() uint32 {
 }
 
 func (conn *Connection) newRequest(q Query) (reqID uint32, r *request, err error) {
-
-	r = &request{query: q, replyChan: make(chan *Response, 1)}
+	if r, _ = requestsPool.Get().(*request); r == nil {
+		r = &request{replyChan: make(chan *Response, 1)}
+	}
 	reqID = conn.nextID()
 
-	r.raw, err = r.query.Pack(reqID, conn.defaultSpace)
+	r.raw, err = q.Pack(reqID, conn.defaultSpace)
 	if err != nil {
 		return 0, nil, &QueryError{error: err}
 	}
 
 	return reqID, r, nil
+}
+
+func (conn *Connection) releaseRequest(r *request) {
+	if len(r.replyChan) == 0 {
+		requestsPool.Put(r)
+	}
 }
 
 func (conn *Connection) stop() {
@@ -119,7 +126,6 @@ func (conn *Connection) worker(tcpConn net.Conn) {
 		req.replyChan <- &Response{
 			Error: ErrConnectionClosed,
 		}
-		close(req.replyChan)
 	})
 
 	close(conn.closed)
@@ -212,7 +218,6 @@ READER_LOOP:
 		req = conn.requests.Pop(requestID)
 		if req != nil {
 			req.replyChan <- response
-			close(req.replyChan)
 		}
 	}
 }

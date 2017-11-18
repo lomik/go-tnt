@@ -21,8 +21,9 @@ type Query interface {
 	Pack(requestID uint32, defaultSpace uint32) ([]byte, error)
 }
 
+var requestsPool sync.Pool
+
 type request struct {
-	query     Query
 	raw       []byte
 	replyChan chan *Response
 }
@@ -177,7 +178,6 @@ func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tu
 	if old := conn.requests.Put(reqID, request); old != nil {
 		// ouroboros has happened
 		old.replyChan <- &Response{Error: ErrShredOldRequests}
-		close(old.replyChan)
 	}
 
 	var timeout time.Duration
@@ -196,7 +196,9 @@ func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tu
 		// pass
 	case <-deadline.C:
 		// delete request from map to avoid leakage
-		conn.requests.Pop(reqID)
+		if request := conn.requests.Pop(reqID); request != nil {
+			conn.releaseRequest(request)
+		}
 		return nil, ErrRequestTimeout
 	case <-conn.exit:
 		return nil, ErrConnectionClosed
@@ -204,6 +206,7 @@ func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tu
 
 	select {
 	case response := <-request.replyChan:
+		conn.releaseRequest(request)
 		return response.Data, response.Error
 	case <-deadline.C:
 		return nil, ErrResponseTimeout
