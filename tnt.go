@@ -169,7 +169,6 @@ type Connection struct {
 }
 
 func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tuple, err error) {
-
 	reqID, request, err := conn.newRequest(q)
 	if err != nil {
 		return
@@ -189,8 +188,8 @@ func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tu
 	}
 
 	// set execute deadline
-	deadline := time.NewTimer(timeout)
-	defer deadline.Stop()
+	deadline := acquireTimer(timeout)
+	defer releaseTimer(deadline)
 
 	select {
 	case conn.requestChan <- request:
