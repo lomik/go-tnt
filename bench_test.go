@@ -3,7 +3,6 @@ package tnt
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"testing"
 )
@@ -34,27 +33,6 @@ func BenchmarkPackIntAlt1(b *testing.B) {
 		body := new(bytes.Buffer)
 		binary.Write(body, binary.LittleEndian, value)
 		body.Bytes()
-	}
-}
-
-func BenchmarkSelect(b *testing.B) {
-	b.SkipNow()
-
-	primaryPort, tearDown, err := setUp()
-	defer tearDown()
-
-	conn, err := Connect(fmt.Sprintf("127.0.0.1:%d", primaryPort), nil)
-	defer conn.Close()
-
-	if err != nil {
-		b.FailNow()
-	}
-
-	for n := 0; n < b.N; n++ {
-		conn.Execute(&Select{
-			Value: PackInt(0),
-			Space: 10,
-		})
 	}
 }
 
