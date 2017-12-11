@@ -55,7 +55,7 @@ START_LOOP:
 		}
 
 		tarantoolConf := `
-		slab_alloc_arena = 0.1
+		slab_alloc_arena = 1
 		slab_alloc_factor = 1.04
 
 		pid_file = {root}/box.pid
