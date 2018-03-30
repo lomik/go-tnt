@@ -170,17 +170,6 @@ func TestPackIntBase128(t *testing.T) {
 	}
 }
 
-func TestPackFieldInt(t *testing.T) {
-	assert := assert.New(t)
-
-	for value := range values(32) {
-		assert.Equal(
-			pythonIproto("pack_int(%d)", value),
-			packFieldInt(uint32(value)),
-		)
-	}
-}
-
 func TestPackFieldStr(t *testing.T) {
 	assert := assert.New(t)
 
