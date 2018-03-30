@@ -170,29 +170,25 @@ func TestPackIntBase128(t *testing.T) {
 	}
 }
 
-func TestPackFieldInt(t *testing.T) {
-	assert := assert.New(t)
-
-	for value := range values(32) {
-		assert.Equal(
-			pythonIproto("pack_int(%d)", value),
-			packFieldInt(uint32(value)),
-		)
-	}
-}
-
 func TestPackFieldStr(t *testing.T) {
 	assert := assert.New(t)
 
+	out := make([]byte, base128len(len("hello_world")))
+	packFieldStr([]byte("hello_world"), out)
+
 	assert.Equal(
 		pythonIproto("pack_str(\"%s\")", "hello_world"),
-		packFieldStr([]byte("hello_world")),
+		out,
 	)
 
 	for value := range values(64) {
+		val := Bytes(fmt.Sprintf("%d", value))
+		out := make([]byte, base128len(len(val)))
+		packFieldStr(val, out)
+
 		assert.Equal(
 			pythonIproto("pack_str(\"%d\")", value),
-			packFieldStr(Bytes(fmt.Sprintf("%d", value))),
+			out,
 		)
 	}
 }

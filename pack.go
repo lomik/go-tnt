@@ -113,36 +113,62 @@ func PackIntBase128(value uint32) []byte {
 	}
 }
 
-func packFieldStr(value []byte) []byte {
-	valueLenPacked := PackIntBase128(uint32(len(value)))
+func PackIntBase128ToSlice(value uint32, data []byte) int {
+	if value < (1 << 7) {
+		data[0] = uint8(value)
+		return 1
+	}
 
-	var buffer bytes.Buffer
-	buffer.Write(valueLenPacked)
-	buffer.Write(value)
+	if value < (1 << 14) {
+		data[0] = uint8((value>>7)&0xff | 0x80)
+		data[1] = uint8(value & 0x7F)
+		return 2
+	}
 
-	return buffer.Bytes()
+	if value < (1 << 21) {
+		data[0] = uint8((value>>14)&0xff | 0x80)
+		data[1] = uint8((value>>7)&0xff | 0x80)
+		data[2] = uint8(value & 0x7F)
+		return 3
+	}
+
+	if value < (1 << 28) {
+		data[0] = uint8((value>>21)&0xff | 0x80)
+		data[1] = uint8((value>>14)&0xff | 0x80)
+		data[2] = uint8((value>>7)&0xff | 0x80)
+		data[3] = uint8(value & 0x7F)
+		return 4
+	}
+
+	data[0] = uint8((value>>28)&0xff | 0x80)
+	data[1] = uint8((value>>21)&0xff | 0x80)
+	data[2] = uint8((value>>14)&0xff | 0x80)
+	data[3] = uint8((value>>7)&0xff | 0x80)
+	data[4] = uint8(value & 0x7F)
+	return 5
 }
 
-func packFieldInt(value uint32) []byte {
-	var buffer bytes.Buffer
-	buffer.Write(PackB(4))
-	buffer.Write(PackInt(value))
-
-	return buffer.Bytes()
+func packFieldStr(value []byte, out []byte) int {
+	l := PackIntBase128ToSlice(uint32(len(value)), out)
+	copy(out[l:], value)
+	return l + len(value)
 }
 
 func packTuple(value Tuple) []byte {
-	var buffer bytes.Buffer
-
 	fields := len(value)
-
-	buffer.Write(PackInt(uint32(fields)))
+	bodyLen := 4
 
 	for i := 0; i < fields; i++ {
-		buffer.Write(packFieldStr(value[i]))
+		bodyLen += base128len(len(value[i]))
 	}
 
-	return buffer.Bytes()
+	data := make([]byte, bodyLen)
+	binary.LittleEndian.PutUint32(data, uint32(fields))
+	offset := 4
+	for i := 0; i < fields; i++ {
+		offset += packFieldStr(value[i], data[offset: ])
+	}
+	return data
 }
 
 func interfaceToUint32(t interface{}) (uint32, error) {
@@ -165,190 +191,208 @@ func interfaceToUint32(t interface{}) (uint32, error) {
 }
 
 func (q *Select) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
-	length := q.ByteLength()
+	bodyLen := 0
+	switch {
+	case q.Value != nil:
+		bodyLen = 8 + base128len(len(q.Value))
+	case q.Values != nil:
+		bodyLen = 4
+		for i := 0; i < len(q.Values); i++ {
+			bodyLen += 4 + base128len(len(q.Values[i]))
+		}
+	case q.Tuples != nil:
+		bodyLen = 4
+		for i := 0; i < len(q.Tuples); i++ {
+			bodyLen += 4
+			for j := 0; j < len(q.Tuples[i]); j++ {
+				bodyLen += base128len(len(q.Tuples[i][j]))
+			}
+		}
+	default:
+		bodyLen = 4
+	}
+	data := make([]byte, bodyLen + 28)
 
-	buf := NewFixedBuffer(length + 12)
-
-	buf.WriteUint32(requestTypeSelect)
-	buf.WriteUint32(uint32(length))
-	buf.WriteUint32(requestID)
+	binary.LittleEndian.PutUint32(data, requestTypeSelect)
+	binary.LittleEndian.PutUint32(data[4:], uint32(bodyLen) + 16)
+	binary.LittleEndian.PutUint32(data[8:], requestID)
+	if q.Space != nil {
+		i, err := interfaceToUint32(q.Space)
+		if err != nil {
+			return nil, err
+		}
+		binary.LittleEndian.PutUint32(data[12:], i)
+	} else {
+		binary.LittleEndian.PutUint32(data[12:], defaultSpace)
+	}
 
 	limit := q.Limit
 	if limit == 0 {
 		limit = 0xffffffff
 	}
-
-	if q.Space != nil {
-		i, err := interfaceToUint32(q.Space)
-		if err != nil {
-			return nil, err
-		}
-		buf.WriteUint32(i)
-	} else {
-		buf.WriteUint32(defaultSpace)
-	}
-
-	buf.WriteUint32(q.Index)
-	buf.WriteUint32(q.Offset)
-	buf.WriteUint32(limit)
+	binary.LittleEndian.PutUint32(data[16:], q.Index)
+	binary.LittleEndian.PutUint32(data[20:], q.Offset)
+	binary.LittleEndian.PutUint32(data[24:], limit)
 
 	switch {
 	case q.Value != nil:
-		buf.WriteUint32(1) // count
-		buf.WriteUint32(1) // fields
-		vlp := PackIntBase128(uint32(len(q.Value)))
-		buf.Write(vlp)
-		buf.Write(q.Value)
+		binary.LittleEndian.PutUint32(data[28:], 1) // count
+		binary.LittleEndian.PutUint32(data[32:], 1) // fields
+		l := PackIntBase128ToSlice(uint32(len(q.Value)), data[36:])
+		copy(data[36 + l:], q.Value)
 	case q.Values != nil:
 		cnt := len(q.Values)
-		buf.WriteUint32(uint32(cnt))
+		binary.LittleEndian.PutUint32(data[28:], uint32(cnt)) // count
+		offset := 32
 		for i := 0; i < cnt; i++ {
-			buf.WriteUint32(1) // fields
-			vlp := PackIntBase128(uint32(len(q.Values[i])))
-			buf.Write(vlp)
-			buf.Write(q.Values[i])
+			binary.LittleEndian.PutUint32(data[offset:], 1) // fields
+			length := len(q.Values[i])
+			l := PackIntBase128ToSlice(uint32(length), data[offset + 4:])
+			copy(data[offset + 4 + l:], q.Values[i])
+			offset += 4 + l + length
 		}
 	case q.Tuples != nil:
 		cnt := len(q.Tuples)
-		buf.WriteUint32(uint32(cnt))
+		binary.LittleEndian.PutUint32(data[28:], uint32(cnt)) // count
+		offset := 32
 		for i := 0; i < cnt; i++ {
 			tuple := q.Tuples[i]
 			fields := len(tuple)
-			buf.WriteUint32(uint32(fields))
+			binary.LittleEndian.PutUint32(data[offset:], uint32(fields))
+			offset += 4
 			for j := 0; j < fields; j++ {
-				vlp := PackIntBase128(uint32(len(tuple[j])))
-				buf.Write(vlp)
-				buf.Write(tuple[j])
+				length := len(tuple[j])
+				l := PackIntBase128ToSlice(uint32(length), data[offset:])
+				copy(data[offset + l:], tuple[j])
+				offset += l + length
 			}
 		}
 	default:
-		buf.WriteUint32(0) // count
+		binary.LittleEndian.PutUint32(data[28:], 0) // count
 	}
 
-	return buf.Bytes(), nil
+	return data, nil
 }
 
 func (q *Insert) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
-	var bodyBuffer bytes.Buffer
-	var buffer bytes.Buffer
+	tuple := packTuple(q.Tuple)
+	bodyLen := len(tuple)
+	data := make([]byte, bodyLen + 20)
 
+	binary.LittleEndian.PutUint32(data, requestTypeInsert)
+	binary.LittleEndian.PutUint32(data[4:], uint32(bodyLen) + 8)
+	binary.LittleEndian.PutUint32(data[8:], requestID)
 	if q.Space != nil {
 		i, err := interfaceToUint32(q.Space)
 		if err != nil {
 			return nil, err
 		}
-		bodyBuffer.Write(PackInt(i))
+		binary.LittleEndian.PutUint32(data[12:], i)
 	} else {
-		bodyBuffer.Write(PackInt(defaultSpace))
+		binary.LittleEndian.PutUint32(data[12:], defaultSpace)
 	}
-
 	if q.ReturnTuple {
-		bodyBuffer.Write(packedInt1)
+		copy(data[16:], packedInt1)
 	} else {
-		bodyBuffer.Write(packedInt0)
+		copy(data[16:], packedInt0)
 	}
-	bodyBuffer.Write(packTuple(q.Tuple))
+	copy(data[20:], tuple)
 
-	buffer.Write(PackInt(requestTypeInsert))
-	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
-	buffer.Write(PackInt(requestID))
-	buffer.Write(bodyBuffer.Bytes())
-
-	return buffer.Bytes(), nil
-
+	return data, nil
 }
 
 func (q *Update) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
-	var bodyBuffer bytes.Buffer
-	var buffer bytes.Buffer
-
-	if q.Space != nil {
-		space, err := interfaceToUint32(q.Space)
-		if err != nil {
-			return nil, err
-		}
-		bodyBuffer.Write(PackInt(space))
-	} else {
-		bodyBuffer.Write(PackInt(defaultSpace))
-	}
-
-	if q.ReturnTuple {
-		bodyBuffer.Write(packedInt1)
-	} else {
-		bodyBuffer.Write(packedInt0)
-	}
-
-	bodyBuffer.Write(packTuple(q.Tuple))
-
+	tuple := packTuple(q.Tuple)
+	bodyLen := len(tuple)
+	opLen := 0
 	if len(q.Ops) != 0 {
-		cnt := len(q.Ops)
-		bodyBuffer.Write(PackInt(uint32(cnt)))
-		for i := 0; i < cnt; i++ {
-			op := q.Ops[i]
-			bodyBuffer.Write(PackInt(op.Field))
-			bodyBuffer.Write(PackB(byte(op.OpCode)))
-			vlp := PackIntBase128(uint32(len(op.Value)))
-			bodyBuffer.Write(vlp)
-			bodyBuffer.Write(op.Value)
+		opLen += 4
+		for i := 0; i < len(q.Ops); i++ {
+			l := len(q.Ops[i].Value)
+			opLen += 5 + base128len(l)
 		}
 	}
+	data := make([]byte, bodyLen + 20 + opLen)
 
-	buffer.Write(PackInt(requestTypeUpdate))
-	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
-	buffer.Write(PackInt(requestID))
-	buffer.Write(bodyBuffer.Bytes())
-
-	return buffer.Bytes(), nil
-}
-
-func (q *Delete) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
-	var bodyBuffer bytes.Buffer
-	var buffer bytes.Buffer
-
+	binary.LittleEndian.PutUint32(data, requestTypeUpdate)
+	binary.LittleEndian.PutUint32(data[4:], uint32(bodyLen) + uint32(opLen) + 8)
+	binary.LittleEndian.PutUint32(data[8:], requestID)
 	if q.Space != nil {
 		i, err := interfaceToUint32(q.Space)
 		if err != nil {
 			return nil, err
 		}
-		bodyBuffer.Write(PackInt(i))
+		binary.LittleEndian.PutUint32(data[12:], i)
 	} else {
-		bodyBuffer.Write(PackInt(defaultSpace))
+		binary.LittleEndian.PutUint32(data[12:], defaultSpace)
 	}
-
 	if q.ReturnTuple {
-		bodyBuffer.Write(packedInt1)
+		copy(data[16:], packedInt1)
 	} else {
-		bodyBuffer.Write(packedInt0)
+		copy(data[16:], packedInt0)
+	}
+	copy(data[20:], tuple)
+	if len(q.Ops) != 0 {
+		cnt := len(q.Ops)
+		offset := 20 + bodyLen
+		binary.LittleEndian.PutUint32(data[offset:], uint32(cnt))
+		offset += 4
+		for i := 0; i < cnt; i++ {
+			op := q.Ops[i]
+			binary.LittleEndian.PutUint32(data[offset:], op.Field)
+			data[offset + 4] = byte(op.OpCode)
+			l := PackIntBase128ToSlice(uint32(len(op.Value)), data[offset + 5:])
+			copy(data[offset + 5 + l:], op.Value)
+			offset += 5 + l + len(op.Value)
+		}
 	}
 
-	bodyBuffer.Write(packTuple(q.Tuple))
+	return data, nil
+}
 
-	buffer.Write(PackInt(requestTypeDelete))
-	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
-	buffer.Write(PackInt(requestID))
-	buffer.Write(bodyBuffer.Bytes())
+func (q *Delete) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
+	tuple := packTuple(q.Tuple)
+	bodyLen := len(tuple)
+	data := make([]byte, bodyLen + 20)
 
-	return buffer.Bytes(), nil
+	binary.LittleEndian.PutUint32(data, requestTypeDelete)
+	binary.LittleEndian.PutUint32(data[4:], uint32(bodyLen) + 8)
+	binary.LittleEndian.PutUint32(data[8:], requestID)
+	if q.Space != nil {
+		i, err := interfaceToUint32(q.Space)
+		if err != nil {
+			return nil, err
+		}
+		binary.LittleEndian.PutUint32(data[12:], i)
+	} else {
+		binary.LittleEndian.PutUint32(data[12:], defaultSpace)
+	}
+	if q.ReturnTuple {
+		copy(data[16:], packedInt1)
+	} else {
+		copy(data[16:], packedInt0)
+	}
+	copy(data[20:], tuple)
 
+	return data, nil
 }
 
 func (q *Call) Pack(requestID uint32, defaultSpace uint32) ([]byte, error) {
-	var bodyBuffer bytes.Buffer
-	var buffer bytes.Buffer
+	name := base128len(len(q.Name))
+	tuple := packTuple(q.Tuple)
+	bodyLen := name + len(tuple)
+	data := make([]byte, bodyLen + 16)
 
+	binary.LittleEndian.PutUint32(data, requestTypeCall)
+	binary.LittleEndian.PutUint32(data[4:], uint32(bodyLen) + 4)
+	binary.LittleEndian.PutUint32(data[8:], requestID)
 	if q.ReturnTuple {
-		bodyBuffer.Write(packedInt1)
+		copy(data[12:], packedInt1)
 	} else {
-		bodyBuffer.Write(packedInt0)
+		copy(data[12:], packedInt0)
 	}
-	bodyBuffer.Write(packFieldStr(q.Name))
-	bodyBuffer.Write(packTuple(q.Tuple))
+	packFieldStr(q.Name, data[16:])
+	copy(data[16 + name:], tuple)
 
-	buffer.Write(PackInt(requestTypeCall))
-	buffer.Write(PackInt(uint32(bodyBuffer.Len())))
-	buffer.Write(PackInt(requestID))
-	buffer.Write(bodyBuffer.Bytes())
-
-	return buffer.Bytes(), nil
-
+	return data, nil
 }
