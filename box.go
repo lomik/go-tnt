@@ -1,4 +1,4 @@
-package tntctl
+package tnt
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-// Box is tarantool instance. For start/stop tarantool in tests
+// Box is a tarantool instance with specified config and BoxOptions.
 type Box struct {
 	Root     string
 	Port     uint
@@ -20,34 +20,39 @@ type Box struct {
 	stopped  chan bool
 }
 
-type Options struct {
+// BoxOptions is the options for the Box instance.
+type BoxOptions struct {
 	Listen  uint
 	PortMin uint
 	PortMax uint
 }
 
-func New(config string, options *Options) (*Box, error) {
-	if options == nil {
-		options = &Options{}
+// NewBox instance.
+func NewBox(config string, options... BoxOptions) (*Box, error) {
+	var opts BoxOptions
+	if len(options) > 0 {
+		opts = options[0]
+	} else {
+		opts = BoxOptions{}
 	}
 
-	if options.PortMin == 0 {
-		options.PortMin = 8000
+	if opts.PortMin == 0 {
+		opts.PortMin = 8000
 	}
 
-	if options.PortMax == 0 {
-		options.PortMax = 9000
+	if opts.PortMax == 0 {
+		opts.PortMax = 9000
 	}
 
-	if options.Listen != 0 {
-		options.PortMin = options.Listen
-		options.PortMax = options.Listen
+	if opts.Listen != 0 {
+		opts.PortMin = opts.Listen
+		opts.PortMax = opts.Listen
 	}
 
 	var box *Box
 
 START_LOOP:
-	for port := options.PortMin; port <= options.PortMax; port += 2 {
+	for port := opts.PortMin; port <= opts.PortMax; port += 2 {
 
 		tmpDir, err := ioutil.TempDir("", "") //os.RemoveAll(tmpDir);
 		if err != nil {
@@ -79,21 +84,18 @@ START_LOOP:
 		tarantoolConf = fmt.Sprintf("%s\n%s", tarantoolConf, config)
 
 		tarantoolConfFile := path.Join(tmpDir, "tarantool.conf")
-		err = ioutil.WriteFile(tarantoolConfFile, []byte(tarantoolConf), 0644)
-		if err != nil {
+		if err = ioutil.WriteFile(tarantoolConfFile, []byte(tarantoolConf), 0644); err != nil {
 			return nil, err
 		}
 
 		for _, subDir := range []string{"snap", "wal"} {
-			err = os.Mkdir(path.Join(tmpDir, subDir), 0755)
-			if err != nil {
+			if err = os.Mkdir(path.Join(tmpDir, subDir), 0755); err != nil {
 				return nil, err
 			}
 		}
 
 		cmd0 := exec.Command("tarantool_box", "-c", tarantoolConfFile, "--init-storage")
-		err = cmd0.Run()
-		if err != nil {
+		if err = cmd0.Run(); err != nil {
 			return nil, err
 		}
 
@@ -103,8 +105,7 @@ START_LOOP:
 			return nil, err
 		}
 
-		err = cmd.Start()
-		if err != nil {
+		if err = cmd.Start(); err != nil {
 			return nil, err
 		}
 
@@ -146,12 +147,13 @@ START_LOOP:
 	}
 
 	if box == nil {
-		return nil, fmt.Errorf("Can't bind any port from %d to %d", options.PortMin, options.PortMax)
+		return nil, fmt.Errorf("couldn't bind any port from %d to %d", opts.PortMin, opts.PortMax)
 	}
 
 	return box, nil
 }
 
+// Close Box instance.
 func (box *Box) Close() {
 	box.stopOnce.Do(func() {
 		box.cmd.Process.Kill()

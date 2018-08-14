@@ -1,13 +1,12 @@
-package tntctl
+package tnt
 
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBox(t *testing.T) {
-	assert := assert.New(t)
 
 	config := `
 	space[0].enabled = 1
@@ -17,10 +16,7 @@ func TestBox(t *testing.T) {
 	space[0].index[0].key_field[0].type = "NUM"
     `
 
-	box, err := New(config, &Options{})
-
-	if assert.NoError(err) {
-		box.Close()
-	}
-
+	box, err := NewBox(config)
+	require.NoError(t, err)
+	box.Close()
 }
