@@ -1,6 +1,7 @@
 package tnt
 
 import (
+	"context"
 	"net"
 	"sync"
 	"time"
@@ -167,6 +168,15 @@ type Connection struct {
 	queryTimeout  time.Duration
 	memcacheSpace interface{}
 	defaultSpace  uint32
+}
+
+// Exec does the q query with context.
+func (conn *Connection) Exec(ctx context.Context, q Query) (result []Tuple, err error) {
+	var opts *QueryOptions
+	if deadline, ok := ctx.Deadline(); ok {
+		opts = &QueryOptions{Timeout:time.Until(deadline)}
+	}
+	return conn.ExecuteOptions(q, opts)
 }
 
 func (conn *Connection) ExecuteOptions(q Query, opts *QueryOptions) (result []Tuple, err error) {
