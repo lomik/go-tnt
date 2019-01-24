@@ -2,13 +2,22 @@ package tnt
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
+	"time"
+)
+
+const (
+	dirSnap = "snap"
+	dirWAL  = "wal"
 )
 
 // Box is a tarantool instance with specified config and BoxOptions.
@@ -28,7 +37,7 @@ type BoxOptions struct {
 }
 
 // NewBox instance.
-func NewBox(config string, options... BoxOptions) (*Box, error) {
+func NewBox(config string, options ...BoxOptions) (*Box, error) {
 	var opts BoxOptions
 	if len(options) > 0 {
 		opts = options[0]
@@ -52,9 +61,9 @@ func NewBox(config string, options... BoxOptions) (*Box, error) {
 	var box *Box
 
 START_LOOP:
-	for port := opts.PortMin; port <= opts.PortMax; port += 2 {
+	for port := opts.PortMin; port <= opts.PortMax; port += 3 {
 
-		tmpDir, err := ioutil.TempDir("", "") //os.RemoveAll(tmpDir);
+		tmpDir, err := ioutil.TempDir("", "")
 		if err != nil {
 			return nil, err
 		}
@@ -65,8 +74,8 @@ START_LOOP:
 
 		pid_file = {root}/box.pid
 		work_dir = {root}
-		snap_dir = snap
-		wal_dir = wal
+		snap_dir = {snap}
+		wal_dir = {wal}
 
 		snap_io_rate_limit = 10
 		rows_per_wal = 1000000
@@ -75,11 +84,15 @@ START_LOOP:
 		primary_port = {port1}
 		memcached_expire = false
 		memcached_port = {port2}
+		admin_port = {port3}
         `
 
 		tarantoolConf = strings.Replace(tarantoolConf, "{port1}", fmt.Sprintf("%d", port), -1)
 		tarantoolConf = strings.Replace(tarantoolConf, "{port2}", fmt.Sprintf("%d", port+1), -1)
+		tarantoolConf = strings.Replace(tarantoolConf, "{port3}", fmt.Sprintf("%d", port+2), -1)
 		tarantoolConf = strings.Replace(tarantoolConf, "{root}", tmpDir, -1)
+		tarantoolConf = strings.Replace(tarantoolConf, "{snap}", dirSnap, -1)
+		tarantoolConf = strings.Replace(tarantoolConf, "{wal}", dirWAL, -1)
 
 		tarantoolConf = fmt.Sprintf("%s\n%s", tarantoolConf, config)
 
@@ -151,6 +164,84 @@ START_LOOP:
 	}
 
 	return box, nil
+}
+
+// Listen is the primary addr of the box.
+func (box *Box) Listen() string {
+	return fmt.Sprintf("127.0.0.1:%v", box.Port)
+}
+
+// ListenMemcache is the memcache addr of the box.
+func (box *Box) ListenMemcache() string {
+	return fmt.Sprintf("127.0.0.1:%v", box.Port+1)
+}
+
+// ListenAdmin is the admin addr of the box.
+func (box *Box) ListenAdmin() string {
+	return fmt.Sprintf("127.0.0.1:%v", box.Port+2)
+}
+
+// SaveSnapshot and return it's filename (with full path).
+func (box *Box) SaveSnapshot() (string, error) {
+	const (
+		cmdSnapshot   = "save snapshot\n"
+		cmdOK         = "ok"
+		cmdFileExists = "fail: can't save snapshot, errno 17 (File exists)"
+		cmdSeparators = "\n-. "
+	)
+	conn, err := net.Dial("tcp", box.ListenAdmin())
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	if err = conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return "", err
+	}
+	if _, err = conn.Write([]byte(cmdSnapshot)); err != nil {
+		return "", err
+	}
+	respBytes := make([]byte, 256)
+	n, err := conn.Read(respBytes)
+	if err != nil {
+		return "", err
+	}
+	response := strings.TrimRight(strings.TrimLeft(string(respBytes[:n]), cmdSeparators), cmdSeparators)
+	switch response {
+	case cmdOK, cmdFileExists:
+		return box.Snapshot()
+	default:
+		return "", errors.New(response)
+	}
+}
+
+// SnapDir of the box.
+func (box *Box) SnapDir() string {
+	return filepath.Join(box.Root, dirSnap)
+}
+
+// WALDir of the box.
+func (box *Box) WALDir() string {
+	return filepath.Join(box.Root, dirWAL)
+}
+
+var ErrSnapshotNotFound = errors.New("snapshot file hasn't been found")
+
+// Snapshot returns the latest snapshot filename with full path.
+func (box *Box) Snapshot() (string, error) {
+	const snapExt = ".snap"
+	files, err := ioutil.ReadDir(box.SnapDir())
+	if err != nil {
+		return "", err
+	}
+
+	// files are sorted alphabetically
+	for i := len(files) - 1; i >= 0; i-- {
+		if filepath.Ext(files[i].Name()) != snapExt {
+			continue
+		}
+		return filepath.Join(box.SnapDir(), files[i].Name()), nil
+	}
+	return "", ErrSnapshotNotFound
 }
 
 // Close Box instance.
