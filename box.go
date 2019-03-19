@@ -85,11 +85,13 @@ START_LOOP:
 		memcached_expire = false
 		memcached_port = {port2}
 		admin_port = {port3}
+		replication_port = {port4}
         `
 
 		tarantoolConf = strings.Replace(tarantoolConf, "{port1}", fmt.Sprintf("%d", port), -1)
 		tarantoolConf = strings.Replace(tarantoolConf, "{port2}", fmt.Sprintf("%d", port+1), -1)
 		tarantoolConf = strings.Replace(tarantoolConf, "{port3}", fmt.Sprintf("%d", port+2), -1)
+		tarantoolConf = strings.Replace(tarantoolConf, "{port4}", fmt.Sprintf("%d", port+3), -1)
 		tarantoolConf = strings.Replace(tarantoolConf, "{root}", tmpDir, -1)
 		tarantoolConf = strings.Replace(tarantoolConf, "{snap}", dirSnap, -1)
 		tarantoolConf = strings.Replace(tarantoolConf, "{wal}", dirWAL, -1)
@@ -179,6 +181,11 @@ func (box *Box) ListenMemcache() string {
 // ListenAdmin is the admin addr of the box.
 func (box *Box) ListenAdmin() string {
 	return fmt.Sprintf("127.0.0.1:%v", box.Port+2)
+}
+
+// ListenReplica is the replication addr of the box.
+func (box *Box) ListenReplica() string {
+	return fmt.Sprintf("127.0.0.1:%v", box.Port+3)
 }
 
 // SaveSnapshot and return it's filename (with full path).
