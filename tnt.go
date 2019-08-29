@@ -154,6 +154,17 @@ type QueryOptions struct {
 	Timeout time.Duration
 }
 
+type IConnection interface {
+	MemGet(key string) ([]byte, error)
+	MemSet(key string, value []byte, expires uint32) error
+	MemDelete(key string) error
+	Exec(ctx context.Context, q Query) (result []Tuple, err error)
+	ExecuteOptions(q Query, opts *QueryOptions) (result []Tuple, err error)
+	Execute(q Query) (result []Tuple, err error)
+	Close()
+	IsClosed() bool
+}
+
 type Connection struct {
 	addr        string
 	requestID   uint32
@@ -170,11 +181,14 @@ type Connection struct {
 	defaultSpace  uint32
 }
 
+// Connection implements IConnection
+var _ IConnection = &Connection{}
+
 // Exec does the q query with context.
 func (conn *Connection) Exec(ctx context.Context, q Query) (result []Tuple, err error) {
 	var opts *QueryOptions
 	if deadline, ok := ctx.Deadline(); ok {
-		opts = &QueryOptions{Timeout:time.Until(deadline)}
+		opts = &QueryOptions{Timeout: time.Until(deadline)}
 	}
 	return conn.ExecuteOptions(q, opts)
 }
