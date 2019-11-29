@@ -97,7 +97,7 @@ func UnpackBody(body []byte) (*Response, error) {
 
 	var rowCount uint32
 	if len(body) >= 8 {
-	rowCount = UnpackInt(body[4:8])
+		rowCount = UnpackInt(body[4:8])
 	}
 	data := make([]Tuple, rowCount)
 
