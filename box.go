@@ -34,6 +34,7 @@ type BoxOptions struct {
 	Listen  uint
 	PortMin uint
 	PortMax uint
+	InitLua string
 }
 
 // NewBox instance.
@@ -100,6 +101,11 @@ START_LOOP:
 
 		tarantoolConfFile := path.Join(tmpDir, "tarantool.conf")
 		if err = ioutil.WriteFile(tarantoolConfFile, []byte(tarantoolConf), 0644); err != nil {
+			return nil, err
+		}
+
+		initLuaFile := path.Join(tmpDir, "init.lua")
+		if err = ioutil.WriteFile(initLuaFile, []byte(opts.InitLua), 0644); err != nil {
 			return nil, err
 		}
 
