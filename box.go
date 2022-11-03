@@ -143,14 +143,14 @@ START_LOOP:
 
 	WAIT_LOOP:
 		for {
-			if strings.Contains(boxStderrBuffer.String(), "entering event loop") {
-				break START_LOOP
-			}
-
 			if strings.Contains(boxStderrBuffer.String(), "is already in use, will retry binding after") {
 				cmd.Process.Kill()
 				cmd.Process.Wait()
 				break WAIT_LOOP
+			}
+
+			if strings.Contains(boxStderrBuffer.String(), "entering event loop") {
+				break START_LOOP
 			}
 
 			n, err := boxStderr.Read(p)
